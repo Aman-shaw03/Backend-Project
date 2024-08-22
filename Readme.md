@@ -1,1 +1,5 @@
-## This is gonna be my first Backend Project which is like full stack app like Youtube combine Twitter
+## Backend Project
+
+This is Gonna be my first Project with Javascript and Express and Mongoose.
+
+Project is like Full stack App like Youtube combine twitter
