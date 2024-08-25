@@ -1,5 +1,7 @@
 import mongoose, {Schema} from "mongoose";
-
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt"
+import { decrypt } from "dotenv";
 const userSchema  = new Schema(
     {
         userName: {
@@ -51,5 +53,59 @@ const userSchema  = new Schema(
     timestamps: true
     }
 )
+// task it to when we send data(password) encrypt it using bcrypt
 
+userSchema.pre("save",  async function(next){
+    if(!this.isModified("password")) return next();
+    this.password = bcrypt.hash(this.password,10)
+    next()
+})
+/*
+using pre hook of mongoose for the "save" event , didnt use arrow function as their is no lexical scope so
+wont be able to access password with it,we use async as encryption takes time ,
+ 10 = Rounds are iterations of the hashing algorithm. 
+The more rounds, the longer it takes to compute the hash , but many times if something else change then again password will be encrypted , but we want that when user set/update/modified only then encrypt it so we use conditions
+*/
+
+// task = how to say if password given by user and password which we encrypt are both same
+
+userSchema.methods.isPasswordCorrect = async function (password) {
+    return await bcrypt.compare(password, this.password)
+}
+//bcrypt also has methods to compare both password = 1 that is send by whoever is calling this function (user) and other password which it has access after submitting/saving data
+
+
+// how to use JWT refresh and access token
+userSchema.methods.generateAccessToken = function(){
+    return jwt.sign(
+        // we will get the _id from mongoDB
+        {
+            _id: _id,
+            userName : this.userName,
+            fullName: this.fullName,
+            email: this.email
+        },
+        process.env.ACCESS_TOKEN_SECRET,
+        {
+            // we have to pass expiry in obj , i know but its syntax
+            expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+        }
+    )
+}
+userSchema.methods.generateRefreshToken = function(){
+    return jwt.sign(
+        // we will get the _id from mongoDB
+        //in refresh token we dont send many things in payload
+        {
+            _id: _id,
+        },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            // we have to pass expiry in obj , i know but its syntax
+            expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+        }
+    )
+}
+// we will store the jswt refresh token in DB but wont save the access token, will learn later
 export const User = mongoose.model("User", userSchema)
+

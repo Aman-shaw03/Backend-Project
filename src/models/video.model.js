@@ -1,4 +1,5 @@
 import mongoose,{Schema} from "mongoose";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const videoSchema = new Schema(
     {
@@ -38,5 +39,7 @@ const videoSchema = new Schema(
     ,{
         timestamps: true
     })
+//mongoose-aggregate-paginate-v2 came late in monogDB so we have to use it as a plugin, and plugin is a hook
+videoSchema.plugin(mongooseAggregatePaginate) 
 
 export const Video = mongoose.model("Video", videoSchema)
