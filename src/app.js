@@ -25,4 +25,19 @@ app.use(express.static("public"))
 
 app.use(cookieParser())
 
+
+
+
+// import Router 
+import userRouter from "./routes/user.routes.js"
+
+
+// routes declaration
+app.use("/api/v1/users", userRouter)
+
+// this will give http://localhost:8000/api/v1/users/
+// and then we move to userRouter and get our /register or /login by calling their method
+// we are not using .get as we are separating routes and controller
+
+
 export { app }
