@@ -26,3 +26,6 @@ necessarily need to bedocumented as it's a custom property introduced within the
 common practice to initialize properties that might be undefined or depend on specific error scenarios. Here,
 data is likely meant to hold additional data related to the API error, but it might not always be available, so it's set to null by default.
  */
+export {
+    ApiError
+}

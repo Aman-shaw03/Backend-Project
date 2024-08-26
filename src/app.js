@@ -36,8 +36,8 @@ import userRouter from "./routes/user.routes.js"
 app.use("/api/v1/users", userRouter)
 
 // this will give http://localhost:8000/api/v1/users/
-// and then we move to userRouter and get our /register or /login by calling their method
-// we are not using .get as we are separating routes and controller
+//  move to userRouter and get our /register or /login by calling their method
+// we are not using .get as we are separating routes and controller (industry standard practise)
 
 
 export { app }
