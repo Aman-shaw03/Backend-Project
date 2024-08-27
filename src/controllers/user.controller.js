@@ -34,7 +34,7 @@ const regsiterUser = asyncHandler( async (req, res) => {
     // using our Error utility and .some sends true when conditions fullfilled
 
     /*Check for existing user in db */
-    const existedError  = User.findOne({
+    const existedError  = await User.findOne({
         $or: [{ userName }, { email }]
         // new syntax 
     })
