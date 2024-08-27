@@ -1,7 +1,7 @@
 import mongoose, {Schema} from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt"
-import { decrypt } from "dotenv";
+
 const userSchema  = new Schema(
     {
         userName: {

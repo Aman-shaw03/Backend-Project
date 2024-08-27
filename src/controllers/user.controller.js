@@ -1,7 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js" 
 import { User } from "../models/user.model.js"
-import { upload } from "../middlewares/multer.middleware.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { ApiResponse } from "../utils/ApiResponse.js";
+
 
 
 
@@ -47,13 +49,53 @@ const regsiterUser = asyncHandler( async (req, res) => {
     /*Check for images and avatar in Local storage*/
     // req.body we get most of time with req.body but due to middleware we have access to files(methods which used to send files)
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
+    //logic => user can send many images , so its a array
+    if(!avatarLocalPath){
+        throw new ApiError(400, "Avatar required")
+    }
+
+    //upload on cloudinary
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+
+    //double checking the avatar
+    if(!avatar){
+        throw new ApiError(400, "Avatar required")
+    }
 
     //specifically check for avatar
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar is required")
     }
+
+    // sending/creating a data object
+    const user = await User.create({
+        userName: userName.toLowerCase(),
+        email,
+        password,
+        fullName,
+        coverImage: coverImage.url || "",
+        avatar: avatar.url
+    }) 
+
+    // check if user object is created in DB ? and remove password and refreshToken 
+    const createdUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
     
+    if(!createdUser){
+        throw new ApiError(500 , "something went wromg while creating user")
+    }
+
+    return res.status(201).json(
+        new ApiResponse(200, createdUser,"User registered successfully")
+    )
 })
 
 export {
