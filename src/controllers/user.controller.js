@@ -69,11 +69,6 @@ const regsiterUser = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Avatar required")
     }
 
-    //specifically check for avatar
-    if(!avatarLocalPath){
-        throw new ApiError(400, "Avatar is required")
-    }
-
     // sending/creating a data object
     const user = await User.create({
         userName: userName.toLowerCase(),
