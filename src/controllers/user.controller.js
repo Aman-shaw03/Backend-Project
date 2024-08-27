@@ -7,7 +7,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 
 
-const regsiterUser = asyncHandler( async (req, res) => {
+const registerUser = asyncHandler( async (req, res) => {
+
     // what should be the proper steps to register a User
     // get user details from frontend
     // validation - not empty
@@ -34,12 +35,12 @@ const regsiterUser = asyncHandler( async (req, res) => {
     // using our Error utility and .some sends true when conditions fullfilled
 
     /*Check for existing user in db */
-    const existedError  = await User.findOne({
+    const existedUser  = await User.findOne({
         $or: [{ userName }, { email }]
         // new syntax 
     })
 
-    if(existedError){
+    if(existedUser){
         throw new ApiError(409, "User existed with same UserName or Email")
     }
 
@@ -48,7 +49,12 @@ const regsiterUser = asyncHandler( async (req, res) => {
 
     /*Check for images and avatar in Local storage*/
     // req.body we get most of time with req.body but due to middleware we have access to files(methods which used to send files)
-    const avatarLocalPath = req.files?.avatar[0]?.path;
+
+    // console.log("this is the requests body , study this ",req.body)
+    let avatarLocalPath;
+    if(req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0){
+        avatarLocalPath = req.files.avatar[0].path;
+    }
 
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
@@ -56,7 +62,7 @@ const regsiterUser = asyncHandler( async (req, res) => {
     }
     //logic => user can send many images , so its a array
     if(!avatarLocalPath){
-        throw new ApiError(400, "Avatar required")
+        throw new ApiError(400, "Avatar required chiaye")
     }
 
     //upload on cloudinary
@@ -72,9 +78,9 @@ const regsiterUser = asyncHandler( async (req, res) => {
     // sending/creating a data object
     const user = await User.create({
         userName: userName.toLowerCase(),
+        fullName,
         email,
         password,
-        fullName,
         coverImage: coverImage.url || "",
         avatar: avatar.url
     }) 
@@ -87,12 +93,15 @@ const regsiterUser = asyncHandler( async (req, res) => {
     if(!createdUser){
         throw new ApiError(500 , "something went wromg while creating user")
     }
+    // console.log("req files are ",req.files);
+    // console.log("req fields are ",req.field);
 
     return res.status(201).json(
         new ApiResponse(200, createdUser,"User registered successfully")
     )
+    
 })
 
 export {
-    regsiterUser
+    registerUser, 
 }

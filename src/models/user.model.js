@@ -12,15 +12,15 @@ const userSchema  = new Schema(
             lowerCase: true,
             index: true
             // if we set index , it will make the  field more searchable
-        }
-        ,email :{
+        },
+        email :{
             type: String,
             trim: true,
             required: true,
             unique: true,
             lowerCase: true,
-        }
-        ,fullName: {
+        },
+        fullName: {
             type: String,
             trim: true,
             required: true,
@@ -48,18 +48,20 @@ const userSchema  = new Schema(
             type: String
             // will learn about it later
         }
-    }
-    ,{
-    timestamps: true
+    },
+    {
+        timestamps: true
     }
 )
 // task it to when we send data(password) encrypt it using bcrypt
 
-userSchema.pre("save",  async function(next){
+userSchema.pre("save", async function(next){
     if(!this.isModified("password")) return next();
-    this.password = bcrypt.hash(this.password,10)
+
+    this.password = await bcrypt.hash(this.password,10)
     next()
 })
+// dont forget to use await , handle the error
 /*
 using pre hook of mongoose for the "save" event , didnt use arrow function as their is no lexical scope so
 wont be able to access password with it,we use async as encryption takes time ,
