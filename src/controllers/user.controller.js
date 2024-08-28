@@ -4,7 +4,13 @@ import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-
+const generateAccessAndRefreshToken = async(userId) => {
+    const user = User.findOne(userId) //find the user based on the id provided by MongoDB
+    const accessToken = user.generateAccessToken() // used a method to generate Access 
+    const refreshToken = user.generateRefreshToken() // used a method to generate refresh token
+    user.refreshToken = refreshToken //we set the refresh token for user
+    await user.save({validateBeforeSave: false}) //save refresh token in DB but if we save we have to validate before save , so we set it to false 
+}
 
 
 const registerUser = asyncHandler( async (req, res) => {
@@ -100,6 +106,43 @@ const registerUser = asyncHandler( async (req, res) => {
         new ApiResponse(200, createdUser,"User registered successfully")
     )
     
+})
+
+// task is to create a Method for Login
+
+const loginUser = asyncHandler( async (req, res) => {
+    // req body -> data
+    // username or email
+    //find the user
+    //password check
+    //access and referesh token
+    //send cookie
+
+
+    // take these from req body
+    const {userName, email , password} = req.body
+
+    //check if email or userName is there
+    if(!(email || userName)){
+        throw new ApiError(400, "email or userName is required")
+    }
+
+    //check if same email or userName is in DB
+    const user = await User.findOne({
+        $or: [{userName}, {email}]
+    })
+    if(!user){
+        throw new ApiError(404, "user not exist")
+    }
+
+    //now use isPasswordcorrect method to check the password
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    if(!isPasswordValid){
+        throw new ApiError(404," invalid user credentials")
+    }
+    //here user is the user we created and the method is from user.model , not the mongoose "User" object
+
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
 })
 
 export {
