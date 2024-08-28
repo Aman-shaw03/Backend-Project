@@ -5,11 +5,17 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 const generateAccessAndRefreshToken = async(userId) => {
-    const user = User.findOne(userId) //find the user based on the id provided by MongoDB
-    const accessToken = user.generateAccessToken() // used a method to generate Access 
-    const refreshToken = user.generateRefreshToken() // used a method to generate refresh token
-    user.refreshToken = refreshToken //we set the refresh token for user
-    await user.save({validateBeforeSave: false}) //save refresh token in DB but if we save we have to validate before save , so we set it to false 
+    try {
+        const user = User.findOne(userId) //find the user based on the id provided by MongoDB
+        const accessToken = user.generateAccessToken() // used a method to generate Access 
+        const refreshToken = user.generateRefreshToken() // used a method to generate refresh token
+        user.refreshToken = refreshToken //we set the refresh token for user
+        await user.save({validateBeforeSave: false}) //save refresh token in DB but if we save we have to validate before save , so we set it to false 
+
+        return {accessToken, refreshToken}
+    } catch (error) {
+        throw new ApiError(500, "unable to create access or refresh token")
+    }
 }
 
 
