@@ -9,7 +9,7 @@ const generateAccessAndRefreshToken = async(userId) => {
         const user = User.findOne(userId) //find the user based on the id provided by MongoDB
         const accessToken = user.generateAccessToken() // used a method to generate Access 
         const refreshToken = user.generateRefreshToken() // used a method to generate refresh token
-        user.refreshToken = refreshToken //we set the refresh token for user
+        user.refreshToken = refreshToken //we set the refresh token for user for the purpose of saving it with user in our DB (i know little  confusing)
         await user.save({validateBeforeSave: false}) //save refresh token in DB but if we save we have to validate before save , so we set it to false 
 
         return {accessToken, refreshToken}
@@ -149,8 +149,35 @@ const loginUser = asyncHandler( async (req, res) => {
     //here user is the user we created and the method is from user.model , not the mongoose "User" object
 
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
+
+    //till now i have created these token but didnt send them to the user, we will do it with the help of cookies
+    // but separately from other data , so we do this step
+
+    const loggedInUser = await User.findOne(user._id).select("-password -refreshToken")
+    //we will send these to user, which is excluded of password and refresh token as we dont want to give it to them
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+    // when we send cookie for token , it can be modified by anyone, but if we give these along with cookies , now the cookies can only be modified by the server  (another good practise)
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken , options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser, accessToken, refreshToken //finally here we give user their tokens
+            },
+            "User Logged in Successfully"
+        )
+    )
 })
 
 export {
     registerUser, 
+    loginUser
 }
