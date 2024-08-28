@@ -1,6 +1,8 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logOutUser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import {verifyJWT} from "../middlewares/auth.middleware.js"
+
 const router = Router()
 router.route("/register").post(
     upload.fields([
@@ -18,5 +20,15 @@ router.route("/register").post(
 )
 // router.route("/login").post(loginUser)
 // we are now using middleware(multer) just before register user method , since we are sending multiple and different kind of data so we use fields  
+
+
+
+
+router.route("/login").post(loginUser)
+
+//secured Routes
+
+router.route("/logout").post(verifyJWT, logOutUser)
+// verifyJWT is our middleware after creating user , next() will execute and goes to logOutUser
 
 export default router

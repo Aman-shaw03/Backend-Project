@@ -24,6 +24,7 @@ app.use(express.static("public"))
 // when data like pdf, images  come to server so we store it in the local folder/assets which we name "public"
 
 app.use(cookieParser())
+// as we are passing cookie parser our req and res both have access to the Cookies
 
 
 

@@ -164,20 +164,51 @@ const loginUser = asyncHandler( async (req, res) => {
 
     return res
     .status(200)
-    .cookie("accessToken", accessToken , options)
+    .cookie("accessToken", accessToken , options) //finally here we give user their tokens
     .cookie("refreshToken", refreshToken, options)
     .json(
         new ApiResponse(
             200,
             {
-                user: loggedInUser, accessToken, refreshToken //finally here we give user their tokens
+                user: loggedInUser, accessToken, refreshToken  // if in above we send token then why we are sending 
+                // we are sending these token again to handle cases like if user isin mobile or want to save them in localstorage (business use case)
             },
             "User Logged in Successfully"
         )
     )
 })
 
+const logOutUser = asyncHandler( async (req, res) => {
+    // idea is to take their access token but how to get them
+    // create a middleware to take it from req.cookie or from req.header.authorization 
+
+    User.findByIdAndUpdate(
+        req.user, 
+        {
+            $unset: {
+                refreshToken: 1 // this removes the field from document
+            }
+        },
+        {
+            new: true  // now old response (with refresh token) wont be send and new response (without RT) sent
+        },
+        
+    )
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out successfully"))
+    
+})
+
 export {
     registerUser, 
-    loginUser
+    loginUser,
+    logOutUser
 }
