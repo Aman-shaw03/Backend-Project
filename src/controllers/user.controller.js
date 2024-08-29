@@ -213,29 +213,35 @@ const logOutUser = asyncHandler( async (req, res) => {
 })
 
 const refreshAccessToken = asyncHandler( async (req, res) => {
+     /*task is to refresh acess token after its expiry time
+    first get both refreshtokens (1 from user and other which i save on DB) then compare 
+    if both token match , generate new access token for the user 
+    User will hit a endpoint after his access token expire(so set a route to)*/
     const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken // mobile users will have their token in Body
     if(!refreshAccessToken){
         throw new ApiError(400, "Unauthorized access")
     }
+    //taken the user refresh token and handle mobile user case
     try {
         const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+        // to get refresh token stored in DB of user , first we have to find user in DB (using "User" from MongoDB), so we are decoding the token received from user to use "findById"
     
         const user = await User.findById(decodedToken._id)
         if(!user){
             throw new ApiError(400, "Invalid refresh Token")
         }
-    
+        //found the user
         if(incomingRefreshToken !== user?.refreshToken){
             throw new ApiError(401, "refresh token is expired or used")
         }
-    
+        //check if both tokens are same (while encoded)
         const options = {
             httpOnly: true,
             secure: true
         }
     
         const {accessToken, newRefreshToken} = await generateAccessAndRefreshToken(user._id)
-    
+        // generate new tokens to replace them
         return res
         .status(200)
         .cookie("accessToken", accessToken , options)
@@ -250,6 +256,7 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
                 "Access token Refreshed"
             )
         )
+        // set the new token with response 
     } catch (error) {
         throw new ApiError(401, error?.message || "Invalid Refresh Token")
     }
