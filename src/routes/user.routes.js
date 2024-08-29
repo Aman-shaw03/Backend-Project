@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerUser, loginUser, logOutUser, refreshAccessToken } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logOutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 
@@ -31,4 +31,7 @@ router.route("/login").post(loginUser)
 router.route("/logout").post(verifyJWT, logOutUser)
 // verifyJWT is our middleware after creating user , next() will execute and goes to logOutUser
 router.route("/refresh-token").post(refreshAccessToken)
+router.route("/change-password").post(verifyJWT, changeCurrentPassword)
+router.route("/current-user").get(verifyJWT, getCurrentUser)
+
 export default router

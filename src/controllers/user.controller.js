@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
+import { json } from "express";
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
@@ -262,11 +263,43 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
     }
 })
 
+
+const changeCurrentPassword = asyncHandler(async(req, res) => {
+    const {currentPassword , newPassword} = req.body
+    
+    const user = await User.findById(req.user?._id) 
+    // since user must be loggedin so we can use verifyJWT to inject this req.user
+    const isPasswordcorrect = await user.isPasswordCorrect(currentPassword)
+
+    if(!isPasswordcorrect){
+        throw new ApiError(400, "Invalid Old Password")
+    }
+    // check the old password
+
+    user.password = newPassword
+    await user.save({validateBeforeSave: false})
+    // we are saving so pre hook will ake effect and if the password is modified ..it will save the password after encrypting it 
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed Successfully"))
+})
+
+const getCurrentUser = asyncHandler( async(req, res) => {
+    return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "User Fetched Successfully"))
+    // as by using verifyJWT it will inject user , so we directly send it in Response
+})
+
+
 export {
     registerUser, 
     loginUser,
     logOutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser
 }
 
 // login and logout working 
