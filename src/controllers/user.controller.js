@@ -292,6 +292,31 @@ const getCurrentUser = asyncHandler( async(req, res) => {
     // as by using verifyJWT it will inject user , so we directly send it in Response
 })
 
+const updateAccountDetails = asyncHandler( async(req, res) => {
+    const {fullName, email} = req.body
+
+    if(!fullName || !email){
+        throw new ApiError(400, "All fields are required")
+    }
+
+    const user = User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullName: fullName,
+                email: email
+            }
+        },
+        {
+            new: true // now response will contain new updated info
+        }
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account Details updated successfully"))
+})
+
 
 export {
     registerUser, 
@@ -299,7 +324,8 @@ export {
     logOutUser,
     refreshAccessToken,
     changeCurrentPassword,
-    getCurrentUser
+    getCurrentUser,
+    updateAccountDetails
 }
 
 // login and logout working 
