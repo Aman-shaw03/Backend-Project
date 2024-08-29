@@ -16,15 +16,14 @@ cloudinary.config({
             resource_type: "auto"
         })
         //file uploaded
-        // console.log("file is uploaded on cloudinary " , response.url);
-        // console.log(response);
+  
         // since file uploaded , unlink file from fs
         fs.unlinkSync(filePath)
-        return response
+        return response;
     } catch (error) {
         // remove the file from fs , even if file upload failed for security purposes
         fs.unlinkSync(filePath)
-        return null
+        return null;
     }
  }
 

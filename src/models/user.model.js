@@ -71,7 +71,7 @@ The more rounds, the longer it takes to compute the hash , but many times if som
 
 // task = how to say if password given by user and password which we encrypt are both same
 
-userSchema.methods.isPasswordCorrect = async function (password) {
+userSchema.methods.isPasswordCorrect = async function(password){
     return await bcrypt.compare(password, this.password)
 }
 //bcrypt also has methods to compare both password = 1 that is send by whoever is calling this function (user) and other password which it has access after submitting/saving data
@@ -82,7 +82,7 @@ userSchema.methods.generateAccessToken = function(){
     return jwt.sign(
         // we will get the _id from mongoDB
         {
-            _id: _id,
+            _id: this._id,
             userName : this.userName,
             fullName: this.fullName,
             email: this.email
@@ -99,7 +99,7 @@ userSchema.methods.generateRefreshToken = function(){
         // we will get the _id from mongoDB
         //in refresh token we dont send many things in payload
         {
-            _id: _id,
+            _id: this._id,
         },
         process.env.REFRESH_TOKEN_SECRET,
         {

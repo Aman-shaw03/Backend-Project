@@ -6,16 +6,17 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
-        const user = User.findOne(userId) //find the user based on the id provided by MongoDB
+        const user = await User.findById(userId) //find the user based on the id provided by MongoDB
         const accessToken = user.generateAccessToken() // used a method to generate Access 
         const refreshToken = user.generateRefreshToken() // used a method to generate refresh token
-        user.refreshToken = refreshToken //we set the refresh token for user for the purpose of saving it with user in our DB (i know little  confusing)
+        user.refreshToken = refreshToken //we set the refresh token for user for the purpose of saving it in our DB (with related user) (i know little  confusing)
         await user.save({validateBeforeSave: false}) //save refresh token in DB but if we save we have to validate before save , so we set it to false 
 
         return {accessToken, refreshToken}
     } catch (error) {
         throw new ApiError(500, "unable to create access or refresh token")
     }
+    //1 error here
 }
 
 
@@ -63,10 +64,13 @@ const registerUser = asyncHandler( async (req, res) => {
     // req.body we get most of time with req.body but due to middleware we have access to files(methods which used to send files)
 
     // console.log("this is the requests body , study this ",req.body)
-    let avatarLocalPath;
-    if(req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0){
-        avatarLocalPath = req.files.avatar[0].path;
-    }
+    // let avatarLocalPath;
+    // console.log(req.files);
+    
+    // if(req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0){
+    //     avatarLocalPath = req.files.avatar[0].path;
+    // }
+    const avatarLocalPath = req.files?.avatar[0]?.path;
 
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
@@ -212,3 +216,5 @@ export {
     loginUser,
     logOutUser
 }
+
+// login and logout working 
