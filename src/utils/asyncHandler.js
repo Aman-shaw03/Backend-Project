@@ -18,7 +18,7 @@ const asyncHandler = (fn) =>async(res, req, next) => {
             success: false,
             message: error.message
         })
+        }
+        }
         in the response status code we are sending the error code or 500  as http status and sending response with json, first send error , then success flag then response message
-    }
-}
 */
