@@ -306,7 +306,7 @@ const updateAccountDetails = asyncHandler( async(req, res) => {
         throw new ApiError(400, "All fields are required")
     }
 
-    const user = User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set: {
@@ -339,8 +339,9 @@ const updateUserAvatar = asyncHandler( async (req, res) => {
     if(!avatar.url){
         throw new ApiError(400, "Error while uploading on cloudinary")
     }
+    // there is a TODO - create a utility that delete the old avatar url
 
-    const user = User.findByIdAndUpdate(req.user._id,
+    const user = await User.findByIdAndUpdate(req.user._id,
         {
             $set: {
                 avatar: avatar.url
@@ -368,7 +369,7 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Error while uploading on cloudinary")
     }
 
-    const user = User.findByIdAndUpdate(req.user._id,
+    const user = await User.findByIdAndUpdate(req.user._id,
         {
             $set: {
                 coverImage: coverImage.url
