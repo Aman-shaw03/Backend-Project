@@ -74,6 +74,11 @@ const registerUser = asyncHandler( async (req, res) => {
     // }
     const avatarLocalPath = req.files?.avatar[0]?.path;
 
+    // why we are doing files her and not file
+    // well in routes we are sending multiple files through multer middleware so we are keep that as "fields" as 
+    //there was option for avatar and cover image so multiple fields are there , so to take from those multiple files 
+    //we are using "files" here
+
     let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
         coverImageLocalPath = req.files.coverImage[0].path
@@ -270,13 +275,14 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
     const user = await User.findById(req.user?._id) 
     // since user must be loggedin so we can use verifyJWT to inject this req.user
     const isPasswordcorrect = await user.isPasswordCorrect(currentPassword)
+    // this method "isPasswordCorrect" is in user model do check it out
 
     if(!isPasswordcorrect){
         throw new ApiError(400, "Invalid Old Password")
     }
     // check the old password
 
-    user.password = newPassword
+    user.password = newPassword // we set it but not yet saved it
     await user.save({validateBeforeSave: false})
     // we are saving so pre hook will ake effect and if the password is modified ..it will save the password after encrypting it 
 
@@ -294,6 +300,7 @@ const getCurrentUser = asyncHandler( async(req, res) => {
 
 const updateAccountDetails = asyncHandler( async(req, res) => {
     const {fullName, email} = req.body
+    // we are creating this to change only 2 fields that is fullname and email , Not even userName
 
     if(!fullName || !email){
         throw new ApiError(400, "All fields are required")
@@ -308,7 +315,7 @@ const updateAccountDetails = asyncHandler( async(req, res) => {
             }
         },
         {
-            new: true // now response will contain new updated info
+            new: true // updated info will return now so we hold it in user
         }
     ).select("-password")
 
@@ -317,8 +324,12 @@ const updateAccountDetails = asyncHandler( async(req, res) => {
     .json(new ApiResponse(200, user, "Account Details updated successfully"))
 })
 
+// its good practise that we want to change user files(avatar, img file) its better to write separate controller and a different endpoint to lower bandwith in network as not whole user data will be resave again and again
+
 const updateUserAvatar = asyncHandler( async (req, res) => {
     const avatarLocalPath = req.file?.path
+    // why using "file" and not "files" as for avatar separate controller , we need one 1 file so we use "file"
+    //also check commnent in create user,
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar file is missing in Local storage")
     }
