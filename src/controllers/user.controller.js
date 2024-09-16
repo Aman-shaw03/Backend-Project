@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import { json } from "express";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async(userId) => {
     try {
@@ -398,7 +399,7 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
         // here we will write our aggregation pipelines {},{}
         {
             $match: {
-                username: username?.toLowerCase() // first pipeline to check for same username
+                username: username?.toLowerCase() // first pipeline to check for same username as this is th field that will be written for user who is subing both times
             }
         },
         {
@@ -464,6 +465,57 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
 })
 
 
+const getWatchHistory = asyncHandler( async(req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id) // check page 23 of word doc, we are in user model
+            }
+        },
+        {
+            $lookup: {
+                from: "videos", // where we want to go (model)
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory", // after this we are getting their documnet with id's but in that there is owner which required data from user so we have to nested
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users", //go back to user model
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner", // in watchHistory we get whole video model and in that video model there is owner which holds all the fields of user , so it result to huge data for sending everytime further nested it to get only necessary data from user
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1 // this will limit the user data in owner field to 3 fields only
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        // we want to add a field as the data will return array and inside it a object , so add a field that only has the first value of array for frontend ease
+                        $addFields:{
+                            owner: {
+                                $first: "$owner" // send only first value of "owner" field to the newly add field "owner" we keep same name so it overrides the owner itself 
+                            }
+                        }
+                    }
+                ]
+
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user[0].watchHistory), "watch history fetched successfully")
+    // we send the first data from user and even in that we send only watchHistory
+})
+
 export {
     registerUser, 
     loginUser,
@@ -474,8 +526,8 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
-
+    getUserChannelProfile,
+    getWatchHistory
 }
 
 // login and logout working 
