@@ -385,6 +385,84 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
     .json(new ApiResponse(200, user, "coverImage changed successfully"))
 })
 
+const getUserChannelProfile = asyncHandler( async(req, res) => {
+    const {username} = req.params // takes the name of channel from url
+
+    if(!username?.trim()){
+        throw new ApiError(400, "Username is missing")
+    }
+
+    // now do the work for getting subscribers and subscribeTo and check if the user is subscribe to me
+
+    const channel =  await User.aggregate([
+        // here we will write our aggregation pipelines {},{}
+        {
+            $match: {
+                username: username?.toLowerCase() // first pipeline to check for same username
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",   // from what model , models name in MOngoDB gets lowercase and plural,
+                localField: "_id", //local field in the model(user model) that we will use to check
+                foreignField: "channel", // field in other model(subscription model) to check from
+                as: "subscribers" // what we will name the field here as, this will turn into a field 
+            },
+            
+        },
+        {
+            $lookup: {
+                // field in other model(subscription model) to check from as we are now getting ppl whom we subscribe to is the foreign field
+                from: "subscriptions",  
+                localField: "_id", 
+                foreignField: "subscriber", 
+                as: "subscribedTo"
+
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: { //to check if subscribe button is clicked 
+                    $cond: {
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true, //flag for frontend
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                //to project only the neccessary fields from user model
+                fullName: 1,
+                username: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1
+            }
+        }
+    ])
+
+    if(!channel?.length){
+        throw new ApiError(404, "channel does not exist")
+    }
+
+    return res
+    .status(200)
+    .jsom( new ApiResponse(200, channel[0], "user channel fetched successful"))
+    //after pipelines we get data in the array format , do check it out and for frontend ease we send the first data from that array array[0]
+
+})
+
 
 export {
     registerUser, 
@@ -395,7 +473,8 @@ export {
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelProfile
 
 }
 
