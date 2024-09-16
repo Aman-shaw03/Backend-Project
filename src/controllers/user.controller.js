@@ -459,7 +459,7 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
 
     return res
     .status(200)
-    .jsom( new ApiResponse(200, channel[0], "user channel fetched successful"))
+    .json( new ApiResponse(200, channel[0], "user channel fetched successful"))
     //after pipelines we get data in the array format , do check it out and for frontend ease we send the first data from that array array[0]
 
 })
