@@ -198,7 +198,7 @@ const logOutUser = asyncHandler( async (req, res) => {
         req.user, 
         {
             $unset: {
-                refreshToken: 1 // this removes the field from document
+                refreshToken: 1 // this removes the field from document, actually unset send the flag to unset the refreshToken, earliers we used $set and set refreshToken as null, which is not working while testing from Postman
             }
         },
         {
