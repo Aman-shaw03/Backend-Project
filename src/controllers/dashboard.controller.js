@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import {Subscription} from "../models/subscription.model"
-import { Like } from "../models/like.model";
-import {Video} from "../models/video.model"
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import {Subscription} from "../models/subscription.model.js"
+import { Like } from "../models/like.model.js";
+import {Video} from "../models/video.model.js"
 
 
 const getChannelStats = asyncHandler(async (req, res) => {
