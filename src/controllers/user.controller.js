@@ -224,8 +224,8 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
     first get both refreshtokens (1 from user and other which i save on DB) then compare 
     if both token match , generate new access token for the user 
     User will hit a endpoint after his access token expire(so set a route to)*/
-    const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken // mobile users will have their token in Body
-    if(!refreshAccessToken){
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken // mobile users will have their token in Body
+    if(!incomingRefreshToken){
         throw new ApiError(400, "Unauthorized access")
     }
     //taken the user refresh token and handle mobile user case
@@ -233,7 +233,7 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
         const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
         // to get refresh token stored in DB of user , first we have to find user in DB (using "User" from MongoDB), so we are decoding the token received from user to use "findById"
     
-        const user = await User.findById(decodedToken._id)
+        const user = await User.findById(decodedToken?._id)
         if(!user){
             throw new ApiError(400, "Invalid refresh Token")
         }
@@ -325,7 +325,8 @@ const updateAccountDetails = asyncHandler( async(req, res) => {
     .json(new ApiResponse(200, user, "Account Details updated successfully"))
 })
 
-// its good practise that we want to change user files(avatar, img file) its better to write separate controller and a different endpoint to lower bandwith in network as not whole user data will be resave again and again
+// its good practise that we want to change user files(avatar, img file) its better to write separate controller
+// and a different endpoint to lower bandwith in network as not whole user data will be resave again and again
 
 const updateUserAvatar = asyncHandler( async (req, res) => {
     const avatarLocalPath = req.file?.path
@@ -454,7 +455,7 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
     ])
 
     if(!channel?.length){
-        throw new ApiError(404, "channel does not exist")
+        throw new ApiError(404, "channel does not exist now ")
     }
 
     return res
