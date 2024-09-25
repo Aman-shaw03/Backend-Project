@@ -17,6 +17,10 @@ const likeSchema = new Schema({
     likedBY:{
         type: Schema.Types.ObjectId,
         ref: "User"
+    },
+    liked:{
+        type: Boolean,
+        default: true
     }
 },{timestamps: true})
 
