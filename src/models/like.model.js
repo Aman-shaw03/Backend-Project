@@ -22,6 +22,8 @@ const likeSchema = new Schema({
         type: Boolean,
         default: true
     }
-},{timestamps: true})
+},{
+    timestamps: true
+})
 
 export const Like = mongoose.model("Like", likeSchema)

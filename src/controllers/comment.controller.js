@@ -20,6 +20,7 @@ const getVideoComments = asyncHandler( async(req, res) => {
     const options = {
         page: parseInt(page),
         limit: parseInt(limit)
+    
     }
 
     const comment = await Comment.aggregate([
