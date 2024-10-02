@@ -2,6 +2,17 @@ import mongoose, {Schema} from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt"
 
+const linkSchema = new Schema({
+    name:{
+        type: String,
+        required: true
+    },
+    url:{
+        type: String,
+        required: true
+    }
+})
+
 const userSchema  = new Schema(
     {
         userName: {
@@ -47,7 +58,12 @@ const userSchema  = new Schema(
         refreshToken:{
             type: String
             // will learn about it later
-        }
+        },
+        description:{
+            type: String,
+            default: ""
+        },
+        links:[linkSchema]
     },
     {
         timestamps: true
