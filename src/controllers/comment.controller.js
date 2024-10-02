@@ -36,7 +36,7 @@ const getVideoComments = asyncHandler( async(req, res) => {
         {
             // get the likes
             $lookup:{
-                from: "Like",
+                from: "likes",
                 localField: "_id",
                 foreignField: "comment",
                 as: "likes",
@@ -58,7 +58,7 @@ const getVideoComments = asyncHandler( async(req, res) => {
         {
             //now get the dislikes
             $lookup:{
-                from: "Like",
+                from: "likes",
                 localField: "_id",
                 foreignField: "comment",
                 as: "dislikes",
@@ -106,7 +106,7 @@ const getVideoComments = asyncHandler( async(req, res) => {
         {
             // get the user
             $lookup:{
-                from: "User",
+                from: "users",
                 localField: "owner",
                 foreignField: "_id",
                 as: "owner",
@@ -277,6 +277,7 @@ const addComment = asyncHandler (async(req, res) => {
 
 
 })
+
 const updateComment = asyncHandler (async(req, res) => {
     //TODO: update a comment to a video
     const {commentId} = req.params

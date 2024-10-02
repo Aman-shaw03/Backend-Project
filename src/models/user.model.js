@@ -63,7 +63,7 @@ const userSchema  = new Schema(
             type: String,
             default: ""
         },
-        links:[linkSchema]
+        links:[linkSchema] // we created a sperate schema for the links , so they got their _id which helps in $pull for removing and update
     },
     {
         timestamps: true
