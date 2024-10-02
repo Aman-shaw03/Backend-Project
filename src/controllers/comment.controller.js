@@ -1,4 +1,4 @@
-import mongoose, { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId, Mongoose } from "mongoose";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -225,12 +225,125 @@ const getVideoComments = asyncHandler( async(req, res) => {
 
 const addComment = asyncHandler (async(req, res) => {
     //TODO: add a comment to a video
+    const {videoId} = req.params
+    const {content} = req.body
+
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Video couldnt find to add comment")
+    }
+
+    if(!content){
+        throw new ApiError(404, "there is no content in comment")
+    }
+
+    const video = await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(408, "couldnt find the video for comment")
+    }
+
+    const comment = await Comment.create({ 
+        content: content,
+        owner: req.user?._id,
+        video: videoId
+    }) // we use .create to create  a document in the model
+
+    if(!comment){
+        throw new ApiError(409, "comment hasn't been created")
+    }
+
+    // what i plan to do now is pass commentData in a different form with owner data and likescount and a flag if he is the owner 
+    const {fullName, avatar, userName, _id} = req.user
+
+    const commentData = {
+        ...comment._doc, 
+        owner: {fullName, avatar, userName, _id}, // in the owner field send only those fields which we require 
+        isOwner: true, //acts as a flag
+        likesCount :0
+        
+    }
+        
+        // since we are spreading it , it is written here and _doc = _doc is the field that the mongoose library uses internally that stores the data pulled directly from mongo. so basically _doc hold all the data and we used it to retrieve it 
+        //const {password, ...otherDetails} = user doesn't work and const {password, ...otherDetails} = user._doc; work 
+
+
+    if(!commentData){
+        throw new ApiError(410, "cannot create the commentData for comments")
+    }
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, commentData, "successful in adding a comment")
+    )
+
+
 })
 const updateComment = asyncHandler (async(req, res) => {
     //TODO: update a comment to a video
+    const {commentId} = req.params
+    const {content}= req.body
+    if(!isValidObjectId(commentId)){
+        throw new ApiError(404, "video id not found for update comment")
+    }
+    if(!content){
+        throw new ApiError(409, "no content for update content")
+    }
+    const verifycomment=await Comment.findById(commentId)
+    if(!verifycomment){
+      throw new ApiError(400,"Couldnt find the comment")
+    }
+    if(!verifycomment?.owner.toString()!==req.user?._id.toString()){
+        throw new ApiError(400,"Only valid user can update comment")
+    }
+    const newComment = await Comment.findByIdAndUpdate(
+        commentId,
+        {
+            $set:{
+                content,
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    if(!newComment){
+        throw new ApiError(405, "newComment hasn't been updated ")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, newComment, "updated comment successfully")
+    )
 })
 const deleteComment = asyncHandler (async(req, res) => {
     //TODO: delete a comment to a video
+    const {commentId} = req.params
+    if(!isValidObjectId(commentId)){
+        throw new ApiError(400, "commentId is not valid Object ID")
+    }
+    const verifycomment=await Comment.findById(commentId)
+    if(!verifycomment){
+      throw new ApiError(400,"Couldnt find the comment")
+    }
+    if(!verifycomment?.owner.toString()!==req.user?._id.toString()){
+        throw new ApiError(400,"Only valid user can delete comment")
+    }
+
+    const comment = await Comment.findByIdAndDelete(commentId)
+    if(!comment){
+        throw new ApiError(400, "couldnt delete the comment ")
+    }
+    const deleteLikes = await Like.deleteMany({
+        comment: new Mongoose.Types.ObjectId(commentId)
+    }
+    )
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, {isDeleted: true}, "comment deleted successfully")
+    )
 })
 
 
