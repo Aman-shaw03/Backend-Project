@@ -1,4 +1,4 @@
-import mongoose, { isValidObjectId, Mongoose } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -335,7 +335,7 @@ const deleteComment = asyncHandler (async(req, res) => {
         throw new ApiError(400, "couldnt delete the comment ")
     }
     const deleteLikes = await Like.deleteMany({
-        comment: new Mongoose.Types.ObjectId(commentId)
+        comment: new mongoose.Types.ObjectId(commentId)
     }
     )
 
