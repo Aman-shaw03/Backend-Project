@@ -50,10 +50,229 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
 
 })
 
+const toggleLike = asyncHandler( async (req, res) => {
+    const {toggleLike, commentId, tweetId, videoId} = req.query
+
+    let reqLike;
+    if(
+        !isValidObjectId(commentId) &&
+        !isValidObjectId(tweetId) &&
+        !isValidObjectId(videoId) 
+    ){
+        throw new ApiError(400, "Invalid ID")
+    }
+    if(toggleLike === "true") reqLike = true
+    else if( toggleLike === "false") reqLike = false
+    else throw new ApiError(400, "Invalid Query string !!!")
+
+    let userLike;
+
+    if(commentId){
+        //find the comment and the corresponding Like document for it
+        const comment = await Comment.findById(commentId)
+        if(!comment) throw new ApiError(400, "cant find the comment")
+
+        userLike = await Like.find({
+            comment: commentId,
+            likedBy: req.user?._id
+        })
+        
+    }else if(tweetId){
+        //find the tweet and the corresponding Like document 
+        const tweet = await Tweet.findById(tweetId)
+        if(!tweet) throw new ApiError(400, "can't find the Tweet")
+        userLike = await Like.find({
+            tweet: tweetId,
+            likedBy: req.user?._id
+        })
+    } else if(videoId){
+        //find the video and the corresponding Like document for the video
+        const video = await Video.findById(videoId)
+        if(!video) throw new ApiError(400, "Can't find the video")
+        userLike = await Like.find({
+            video: videoId,
+            likedBy: req.user._id
+        })
+
+    }
+
+    const isLiked = false
+    const isDisliked = false
+
+    if(userLike?.length > 0){
+        // we found the Like doc
+        if(userLike[0].liked){
+            // inside the doc Liked field is True
+            if(reqLike){
+                // we pass the reqLike as true
+                // since its already liked, and we again liked it , so remove the like
+                await Like.findByIdAndDelete(userLike[0]._id)
+                isLiked = false,
+                isDisliked = true
+            }else{
+                // we pass the reqLike query as false, means we want to remove like and dislike 
+                userLike[0].liked = false
+                const res = await userLike[0].save()
+                if(!res) throw new ApiError(400, "error while toggling Like 1 ")
+                isLiked = false;
+                isDisliked = true
+            }
+        }else{
+            // inside the like document field "liked" is false already
+            if(reqLike){
+                // but we pass true in query , then edit the like doc and save it 
+                userLike[0].liked = true
+                const res = await userLike[0].save()
+                if(!res) throw new ApiError(400, "error while toggling like 2")
+                isLiked = true
+                isDisliked = false
+            }else{
+                // its false already and we again send the false, so remove it
+                await Like.findByIdAndDelete(userLike[0]._id)
+                isLiked = false
+                isDisliked = false
+            }
+        }
+    } else{
+        // here we mean there is no Like document already created so create it now
+        let like;
+        if(commentId){
+            like = await Like.create({
+                comment: commentId,
+                likedBy: req.user._id,
+                liked: reqLike
+            })
+        }else if(tweetId){
+            like = await Like.create({
+                tweet: tweetId,
+                likedBy: req.user._id,
+                liked: reqLike
+            })
+        }else if(videoId){
+            like = await Like.create({
+                video: videoId,
+                likedBy: req.user._id,
+                liked: reqLike
+            })
+        }
+
+        if(!like){
+            throw new ApiError(400, "Error while creating Like document")
+        }
+        isLiked: reqLike
+        isDisliked: !reqLike
+    }
+    let totalLikes;
+    let totalDislikes;
+
+    if(commentId){
+        totalLikes = await Like.find({comment: commentId, liked: true})
+        totalDislikes = await Like.find({comment: commentId, liked: false})
+    }else if(tweetId){
+        totalLikes = await Like.find({comment: tweetId, liked: true})
+        totalDislikes = await Like.find({comment: tweetId, liked: false})        
+    }else if(videoId){
+        totalLikes = await Like.find({comment: videoId, liked: true})
+        totalDislikes = await Like.find({comment: videoId, liked: false})
+    }
+
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200, {
+                isLiked,
+                totalLikes: totalLikes.length,
+                isDisliked,
+                totalDislikes: totalDislikes.length
+            },
+            "like toggle successfully"
+        )
+    )
+
+}) // do check out page 46 to know in detail
+
 const toggleCommentLike = asyncHandler(async (req, res) => {
     const {commentId} = req.params
     //TODO: toggle like on comment
+    const { toggleLike } = req.query
 
+    if(!isValidObjectId(commentId)) throw new ApiError(400, "Inavalid comment ID")
+    let reqLike;
+    if(toggleLike === "true") reqLike = true
+    else if(toggleLike === "false") reqLike = false
+    else throw new ApiError(500, "invalid togglelike in query")
+
+    const comment = await Comment.findById(commentId)
+    if(!comment) throw new ApiError(400, "can't find the comment")
+    const userLike = await Like.find({
+        comment: commentId,
+        likedBy: req.user._id
+    })
+
+    const isLiked = false
+    const isDisliked = false
+
+    if(userLike?.length > 0){
+        if(userLike.liked){
+            if(reqLike){
+                await Like.findByIdAndDelete(commentId)
+                isLiked = false
+                isDisliked = false
+            }else{
+                userLike[0].liked = false
+                const res = await userLike[0].save()
+                if(!res) throw new ApiError(400, "Error while updating Like")
+                isLiked = false
+                isDisliked = true
+            }
+        }else{
+            if(reqLike){
+                userLike[0].liked = true
+                const res = await userLike[0].save()
+                if(!res) throw new ApiError(400, "Error while updating Like")
+                isLiked = true
+                isDisliked = false
+            }else{
+                await Like.findByIdAndDelete(commentId)
+                isLiked = false
+                isDisliked = false
+            }
+        }
+    }else{
+        const like = await Like.create({
+            comment: commentId,
+            likedBy: req.user?._id,
+            liked: reqLike
+        })
+
+        if(!like) throw new ApiError(500, "Error while making like document ")
+        isLiked = reqLike
+        isDisliked = reqLike
+    }
+
+    const totalLikes = await Like.find({
+        comment: commentId,
+        liked: true
+    })
+    const totalDislikes = await Like.find({
+        comment: commentId,
+        liked: false
+    })
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,{
+            isLiked,
+            totalLikes: totalLikes.length,
+            isDisliked,
+            totalDislikes: totalDislikes.length
+        },
+        "Comment like toggle successfully"
+    )
+    )
 })
 
 const toggleTweetLike = asyncHandler(async (req, res) => {
