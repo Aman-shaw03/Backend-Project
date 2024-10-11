@@ -50,7 +50,7 @@ const uploadVideoOnCloudinary = async (filePath) => {
                 eager: [
                     {
                         streaming_profile: "hd", // streaming profile could be full-hd, hd, sd based on the plan
-                        format: "m3u8" //format for HTTP live streaming version, with eager we are creating differen version of our asset
+                        format: "m3u8" //format for HTTP live streaming version, with eager we are creating differen version of our asset, to show differently based on coditions
     
                     }
                 ]
@@ -68,10 +68,55 @@ const uploadVideoOnCloudinary = async (filePath) => {
     }
 }
 const deletePhotoOnCloudinary = async (URL) => {
+    if(!URL) return null
+    const imageId = URL.match(
+        /(?:image|video)\/upload\/v\d+\/videotube\/(photos|videos)\/(.+?)\.\w+$/
+    )[2];
+      /*This is the regular expression itself, which matches a Cloudinary URL and captures two groups:
+        The first group ((photos|videos)) captures either "photos" or "videos".
+        The second group ((.+?)\.\w+$) captures the image ID.
+        [2]: This accesses the second captured group from the match array. Since the image ID is captured in the second group,
+     */
+    console.log("Deleting Photo from Cloudinary!!! ");
+    try {
+        const cloudinary_res = await cloudinary.uploader.destroy(
+            `videoTube/photos/${imageId}`,
+            {
+                resource_type: 'image'
+            }
+        )
+        return cloudinary_res
+    } catch (error){
+        console.log("ERROR:: WHILE DELETING PHOTO FROM CLOUDINARY :: ", error);
+        return null
+        
+    }
+    
 
 }
 const deleteVideoOnCloudinary = async (URL) => {
+    if(!URL){
+        return null
+    }
+    const videoId = URL.match(
+        /(?:image|video)\/upload\/v\d+\/videotube\/(photos|videos)\/(.+?)\.\w+$/
+    )[2]
+    console.log("DELETING VIDEO FROM CLOUDINARY !!!");
+    try {
+        const cloudinary_res = await cloudinary.uploader.destroy(
+            `videoTube/video/${videoId}`,
+            {
+                resource_type: "video"
+            }
+        )
 
+        return cloudinary_res
+    } catch (error) {
+        console.log("ERROR :: DELETING VIDEO FROM CLOUDINARY :: ", error);
+        return null
+
+    }
+    
 }
 //  const uploadOnCloudinary = async (filePath) => {
 //     try {
