@@ -149,9 +149,66 @@ const getAllVideosByOption = asyncHandler(async (req, res) => {
         )
     )
 
-
 })
 
+const getAllVideos = asyncHandler( async(req,res) => {
+    const {userId} = req.user
+    let filters = {
+        isPublished: true
+    }
+    if(isValidObjectId(userId)){
+        filters.owner = userId
+    }
+    let pipeline = [
+        {
+            $match:{
+                ...filters
+            }
+        }
+    ]
+
+    pipeline.push(
+        {
+            $sort:{
+                createdAt : -1
+            }
+        }
+    )
+    pipeline.push(
+        {
+            $lookup:{
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline:[
+                    {
+                        $project:{
+                            userName: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $unwind: "$owner"
+        }
+
+    )
+    const allVideos = await Video.aggregate(Array.from(pipeline))
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            allVideos,
+            "All Videos sent"
+        )
+    )
+
+})
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description} = req.body
     // TODO: get video, upload to cloudinary, create video
