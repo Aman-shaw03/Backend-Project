@@ -17,58 +17,138 @@ import {Playlist} from "../models/playlist.model.js"
 import fs from "fs"
 
 
-const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy = 'createdAt', sortType = "asc", userId } = req.query
-    //TODO: get all videos based on query, sort, pagination
+const getAllVideosByOption = asyncHandler(async (req, res) => {
+    const {
+        page = 1,
+        limit = 10,
+        search = "",
+        sortBy,
+        sortType = "video",
+        order,
+        userId
+    } = req.query
 
-    //ensure the limit and page numbers are in Integer
-    const limitNumber = parseInt(limit, 10)
-    const pageNumber = parseInt(page, 10) // The second argument, 10, specifies that the number should be parsed in base 10 (decimal).default is 0 but it will cause errors so we pass
-    const sortDirection = sortType === "asc"? 1 : -1
+    let filters = {
+        isPublished: true
+    }
+    if(isValidObjectId(userId)){
+        filters.owner = userId
+    }
 
-    // make a filter for to find the videos
-    const filter = {}
-    // if we get query in the GET req.query , use it in the filter for both title and description
-    if(query){
-        filter = {
-            $or:[
-                {title: new RegExp(query, "i")},
-                {description: new RegExp(query, "i")}
-            ]
+    let pipeline = [
+        {
+            $match:{
+                ...filters
+            }
+        }
+    ]
+    const sort = {}
+    // code for getting the better search results
+    if(search){
+        let queryWords = search
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .split(" ")
+
+        const filteredWords = queryWords.filter(
+            (word) => !stopWords.includes(word)
+        )
+
+        console.log("search ", search);
+        console.log("filteredWords ", filteredWords);
+
+        pipeline.push({
+            $addFields:{
+                titleMatchWordCount:{
+                    $size:{
+                        $filter:{
+                            input: filteredWords,
+                            as: 'word',
+                            $cond:{
+                                $in: ["$$word", {$split: [{$toLower: "$title"}, " "]}]
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        pipeline.push({
+            $addFields:{
+                descriptionMatchWordCount:{
+                    $size:{
+                        $filter:{
+                            input: filteredWords,
+                            as: 'word',
+                            $cond:{
+                                $in: ["$$word", {$split: [{$toLower: "$description"}, " "]}]
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        sort.titleMatchWordCount = -1 
+    }
+    // code for sorting
+    if(sortBy){
+        sort[sortBy] = parseInt(order) // this is like adding a key-value pair in sort Obj , sortBy is the field we will pass in the query
+        if(!search && !sortBy){
+            sort["createdAt"] = -1 // if no query then just sort by desc order at createdAt
         }
     }
-    /*why we try to insert query in both title and description => to make it more responsive as many times videos metadata is included in the description so it makes it more searchable and good practise */
 
-    if(userId){
-        filter.owner = userId
+    pipeline.push({
+        $sort:{
+            ...sort
+        }
+    })
+
+    // code for fetching User details
+    pipeline.push(
+        {
+            $lookup:{
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline:[
+                    {
+                        $project:{
+                            userName: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $unwind: "$owner"
+        }
+
+    )
+    const videoAggregate = await Video.aggregate(pipeline)
+    const options = {
+        page: parseInt(page),
+        limit: parseInt(limit)
     }
-
-    try {
-        const videos = await Video.find(filter)
-        .sort({[sortBy] : sortDirection}) //The square brackets are essential for creating a dynamic property name.
-        .skip((pageNumber-1)*limitNumber) // what skip do is basically the number of documents and passed the document after that If page is 2 and limit is 10, the skip() method would skip the first 10 documents (10 * (2-1)) and the limit() method would return the next 10 documents. This would retrieve the second page of videos.
-        .limit(limitNumber)
-    
-        const totalVideos = await Video.countDocuments(filter)
-    
-        //send the response
-        return res
-        .status(200)
-        .json(
+    const allVideos = await Video.aggregatePaginate(videoAggregate, options)
+    const {docs, ...pagingInfo} = allVideos // after pagination we get 2 things one is docs for data and paging information
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
             200,
             {
-                success: true,
-                data: videos,
-                totalVideos,
-                currentPage : pageNumber,
-                totalPages: Math.ceil((totalVideos / limitNumber))
-            }
+                videos: docs, pagingInfo
+            },
+            "All Query Videos sent Successfully"
         )
-    } catch (error){
-        res
-        .status(500)
-        .json({ success: false, message: "Server Error", error: error.message });
-    }
+    )
+
 
 })
 
