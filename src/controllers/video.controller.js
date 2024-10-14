@@ -15,6 +15,7 @@ import {Comment} from "../models/comment.model.js"
 import {Like} from "../models/like.model.js"
 import {Playlist} from "../models/playlist.model.js"
 import fs from "fs"
+import { pipeline } from "stream"
 
 
 const getAllVideosByOption = asyncHandler(async (req, res) => {
@@ -318,12 +319,193 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: get video by id
+    // to get a video , get the video + the number of likes and dislikes + owner details + if its liked or disliked
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Error Invalid Video ID")
+    }
+    const video = await video.aggregate(
+        [
+            {
+                $match:{
+                    _id: new mongoose.Types.ObjectId(videoId),
+                    isPublished: true
+                }
+            },
+            {
+                $lookup:{
+                    from: "likes",
+                    localField: "_id",
+                    foreignField: "video",
+                    as: "likes",
+                    pipeline:[
+                        {
+                            $liked: true
+                        },
+                        {
+                            $group:{
+                                _id: "liked",
+                                likeOwners: {
+                                    $push: "$likedBy"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $lookup:{
+                    from: "likes",
+                    localField: "_id",
+                    foreignField: "video",
+                    as: "dislikes",
+                    pipeline:[
+                        {
+                            $liked: false
+                        },
+                        {
+                            $group:{
+                                _id: "liked",
+                                dislikeOwners: {
+                                    $push: "$likedBy"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields:{
+                    likes:{
+                        $cond:{
+                            if:{
+                                $gt:[{$size: "$likes"}, 0]
+                            },
+                            then:{
+                                $first:"$likes.likeOwners"
+                            },
+                            else:[]
+                        }
+                    },
+                    dislikes:{
+                        $cond:{
+                            if:{
+                                $gt:[{$size: "$dislikes"}, 0]
+                            },
+                            then:{
+                                $first:"$dislikes.dislikeOwners"
+                            },
+                            else:[]
+                        }
+                    },
+                }
+            },
+            {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline:[
+                    {
+                        $project:{
+                            fullName:1,
+                            userName:1,
+                            avatar:1
+                        }
+                    }
+                ]
+            },
+            {
+                $unwind: "$owner"
+            },
+            {
+                $project:{
+                    videoFile:1,
+                    thumbnail:1,
+                    createdAt:1,
+                    updatedAt:1,
+                    title:1,
+                    description:1,
+                    duration:1,
+                    owner:1,
+                    views:1,
+                    totalLikes:{
+                        $size: "$likes"
+                    },
+                    totalDislikes:{
+                        $size: "$dislikes"
+                    },
+                    isLiked:{
+                        $cond:{
+                            if:{
+                                $in:[req.user?._id, "$likes"]
+                            },
+                            then: true,
+                            else: false
+                        }
+                    },
+                    isDisliked:{
+                        $cond:{
+                            if:{
+                                $in:[req.user?._id, "$dislikes"]
+                            },
+                            then: true,
+                            else: false
+                        }
+                    },
+
+                }
+            }
+        ]
+    )
+    if (!video.length > 0) throw new ApiError(400, "No video found");
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, video[0], "Video sent successfully"));
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: update video details like title, description, thumbnail
+    const {title, description} = req.body
+    const thumbnailLocalFilePath = req.file?.path
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Invalid Video ID for update Video")
+    }
+    if (!title && !description && !thumbnailLocalFilePath) {
+        throw new ApiError(400, "At-least one field required");
+    }
 
+    const video = await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(400, "Couldn't fetch the Video from Video model , Video dont Exist")
+    }
+    // only the owner of the video should have the access to update details
+    if(video.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(400, " only the owner of the video should have the access to update details")
+    }
+    let thumbnail
+    thumbnail = await uploadPhotoOnCloudinary(thumbnailLocalFilePath)
+    if(!thumbnail){
+        throw new ApiError(400, "Error while Uploading Thumbnail in cluodinary");
+    }
+    await deletePhotoOnCloudinary(video.thumbnail)
+    if(title) video.title = title
+    if(description) video.description = description
+    if(thumbnail) video.thumbnail = thumbnail.url
+
+    const updatedVideo = await Video.save({
+        validateBeforeSave: false
+    })
+
+    if(!updatedVideo){
+        throw new ApiError(400, "Error while Updating details")
+    }
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, updatedVideo, "Video Updated Successfully")
+    )
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
