@@ -228,8 +228,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
    }
 
    // we will get video and thumbnail in the req.files
-   let videoFilePath;
-   if(req.files && req.files.videoFilePath && req.files.videoFilePath.length === 0){
+    let videoFilePath;
+    if(req.files && req.files.videoFilePath && req.files.videoFilePath.length === 0){
        videoFilePath = req.files?.videoFilePath[0].path
     }
     if(!videoFilePath){
@@ -239,23 +239,23 @@ const publishAVideo = asyncHandler(async (req, res) => {
     if(req.files && req.files.thumbnailPath && req.files.thumbnailPath.length > 0 ){
         thumbnailPath = req.files?.thumbnailPath[0].path
     }
-   if(!thumbnailPath){
+    if(!thumbnailPath){
     new ApiError(400, "Error while getting thumbnail")
    }
    
    // now we create a custom closed connection , so check in different stages o uploading if its close => if yes delete the files
-   if(req.customeConnectionClosed){
+    if(req.customeConnectionClosed){
     console.log("Connection closed, aborting video and thumbnail upload...");
     console.log("All resources Cleaned up & request closed...");
     return; // Preventing further execution
    }
 
    // uploading the video file
-   const videoFile = await uploadVideoOnCloudinary(videoFilePath)
-   if(!videoFile){
+    const videoFile = await uploadVideoOnCloudinary(videoFilePath)
+    if(!videoFile){
     throw new ApiError(400, "Error while Uploading Video on cloudinary")
    }
-   if(req.customeConnectionClosed){
+    if(req.customeConnectionClosed){
     console.log("Connection is closed so will be deleting the video file and the thumbnail from localpath");
     
     await deleteVideoOnCloudinary(videoFile.url)
@@ -265,21 +265,21 @@ const publishAVideo = asyncHandler(async (req, res) => {
     return
    }
 
-   const thumbnailFile = await uploadPhotoOnCloudinary(thumbnailPath)
-   if(!thumbnailFile){
+    const thumbnailFile = await uploadPhotoOnCloudinary(thumbnailPath)
+    if(!thumbnailFile){
     throw new ApiError(400, "Error while Uploading Thumbnail on cloudinary")
-   }
-   if(req.customeConnectionClosed){
+    }
+    if(req.customeConnectionClosed){
     console.log("Connection closed!!! deleting video & thumbnail and aborting db operation...");
     await deleteVideoOnCloudinary(videoFile.url)
     await deletePhotoOnCloudinary(thumbnailFile.url)
     console.log("All resources cleanedUp and connections closed");
     return
-   }
-   console.log("Updating DB...");
+    }
+    console.log("Updating DB...");
    
    // now we have save Got the title and description and saved the videoFile and thumbnail in cludinary, now create a Video model document with te above data
-   const video = await Video.create(
+    const video = await Video.create(
     {
         title,
         description: description || " ",
@@ -288,7 +288,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         onwer: req.user._id,
         duration: videoFile.duration,
     }
-   )
+    )
     console.log("main video controler",video)
 
     if (!video) throw new ApiError(500, "Error while Publishing Video");
