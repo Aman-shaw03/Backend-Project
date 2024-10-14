@@ -39,6 +39,7 @@ import commentRouter from "./routes/comment.routes.js"
 import likeRouter from "./routes/like.routes.js"
 import playlistRouter from "./routes/playlist.routes.js"
 import dashboardRouter from "./routes/dashboard.routes.js"
+import aboutRouter from "./routes/about.routes.js"
 
 
 
@@ -52,6 +53,8 @@ app.use("/api/v1/comments", commentRouter)
 app.use("/api/v1/likes", likeRouter)
 app.use("/api/v1/playlist", playlistRouter)
 app.use("/api/v1/dashboard", dashboardRouter)
+// http://localhost:3000/api/v1/about/user
+app.use("/api/v1/about/user/", aboutRouter);
 
 // this will give http://localhost:8000/api/v1/users/
 //  move to userRouter and get our /register or /login by calling their method
