@@ -58,8 +58,8 @@ const uploadVideoOnCloudinary = async (filePath) => {
         )
     
         fs.unlinkSync(filePath)
-        const h1url = cloudinary_res.eager?.[0]?.secure_url
-        return {...cloudinary_res, h1url}
+        const hlsurl = cloudinary_res.eager?.[0]?.secure_url
+        return {...cloudinary_res, hlsurl}
     } catch (error) {
         fs.unlinkSync(filePath)
         console.log("ERROR :: WHILE UPLOADING VIDEO ON CLOUDINARY :: ", error);

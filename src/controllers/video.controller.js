@@ -226,50 +226,92 @@ const publishAVideo = asyncHandler(async (req, res) => {
    if(!description || description.length === 0){
     throw new ApiError(400, "Error while getting decsription")
    }
+
    // we will get video and thumbnail in the req.files
-   const videoFilePath = req.files?.videoFilePath
-   const thumbnailPath = req.files?.thumbnailPath
-   if(!videoFilePath || videoFilePath.length === 0){
-    throw new ApiError(400, "Error while getting videoFilePath")
+   let videoFilePath;
+   if(req.files && req.files.videoFilePath && req.files.videoFilePath.length === 0){
+       videoFilePath = req.files?.videoFilePath[0].path
+    }
+    if(!videoFilePath){
+        throw new ApiError(400, "Error while getting video file")
+    }
+    let thumbnailPath;
+    if(req.files && req.files.thumbnailPath && req.files.thumbnailPath.length > 0 ){
+        thumbnailPath = req.files?.thumbnailPath[0].path
+    }
+   if(!thumbnailPath){
+    new ApiError(400, "Error while getting thumbnail")
    }
-   if(!thumbnailPath || thumbnailPath.length === 0){
-    throw new ApiError(400, "Error while getting thumbnailPath")
-   }
-
-   // now upload the video and thumbnail to the cloudinary
-   const video = await uploadOnCloudinary(videoFilePath)
-   const thumbnail = await uploadOnCloudinary(thumbnailPath)
-   if (!video) {
-    throw new Apierror(400, "Video should be added compulsory");
-  }
-  if (!thumbnail) {
-    throw new Apierror(400, "Video should be added compulsory");
-  }
-
-  const uploadVideo = await Video.create({
-    title,
-    description,
-    owner: req.user?._id,
-    videoFile : video.url,
-    thumbnail: thumbnail.url,
-    isPublish: true,
-    duration: video.duration,
-  })
-
-  if(!uploadVideo){
-    throw new ApiError(400, "Error while uploadVideo")
-  }
    
-  return res
-  .status(200)
-  .json(
-    200,
+   // now we create a custom closed connection , so check in different stages o uploading if its close => if yes delete the files
+   if(req.customeConnectionClosed){
+    console.log("Connection closed, aborting video and thumbnail upload...");
+    console.log("All resources Cleaned up & request closed...");
+    return; // Preventing further execution
+   }
+
+   // uploading the video file
+   const videoFile = await uploadVideoOnCloudinary(videoFilePath)
+   if(!videoFile){
+    throw new ApiError(400, "Error while Uploading Video on cloudinary")
+   }
+   if(req.customeConnectionClosed){
+    console.log("Connection is closed so will be deleting the video file and the thumbnail from localpath");
+    
+    await deleteVideoOnCloudinary(videoFile.url)
+    console.log("All resources cleanedUp and connections closed");
+    
+    fs.unlinkSync(thumbnailPath)
+    return
+   }
+
+   const thumbnailFile = await uploadPhotoOnCloudinary(thumbnailPath)
+   if(!thumbnailFile){
+    throw new ApiError(400, "Error while Uploading Thumbnail on cloudinary")
+   }
+   if(req.customeConnectionClosed){
+    console.log("Connection closed!!! deleting video & thumbnail and aborting db operation...");
+    await deleteVideoOnCloudinary(videoFile.url)
+    await deletePhotoOnCloudinary(thumbnailFile.url)
+    console.log("All resources cleanedUp and connections closed");
+    return
+   }
+   console.log("Updating DB...");
+   
+   // now we have save Got the title and description and saved the videoFile and thumbnail in cludinary, now create a Video model document with te above data
+   const video = await Video.create(
     {
-        success: true,
-        uploadVideo
-    },
-    "Video Uploaded successfully"
-  )
+        title,
+        description: description || " ",
+        videoFile: videoFile.hlsurl,
+        thumbnail: thumbnailFile.url,
+        onwer: req.user._id,
+        duration: videoFile.duration,
+    }
+   )
+    console.log("main video controler",video)
+
+    if (!video) throw new ApiError(500, "Error while Publishing Video");
+    if(req.customeConnectionClosed){
+        console.log("Connection closed!!! deleting video & thumbnail and aborting db operation...");
+        let video = await Video.findOneAndDelete(video._id)
+        await deleteVideoOnCloudinary(videoFile.url)
+        await deletePhotoOnCloudinary(thumbnailFile.url)
+        console.log("Video document is deleted ", video);
+        
+        console.log("All resources cleanedUp and connections closed")
+        return
+    }
+    return res
+    .status(200)
+    .json(
+        200,
+        {
+            success: true,
+            video
+        },
+        "Video Uploaded successfully"
+    )
    
 })
 
