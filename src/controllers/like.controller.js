@@ -397,5 +397,6 @@ export {
     toggleCommentLike,
     toggleTweetLike,
     toggleVideoLike,
-    getLikedVideos
+    getLikedVideos,
+    toggleLike
 }

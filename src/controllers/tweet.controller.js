@@ -567,5 +567,7 @@ export {
     createTweet,
     getUserTweets,
     updateTweet,
-    deleteTweet
+    deleteTweet,
+    getAllTweets,
+    getAllUserFeedTweets
 }
