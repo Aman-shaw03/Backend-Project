@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { registerUser, loginUser, logOutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logOutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory, clearWatchHistory } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import {verifyJWT} from "../middlewares/auth.middleware.js"
-
+import {checkUser} from "../middlewares/openRouteAuth.middleware.js"
 const router = Router()
 
 router.route("/register").post(
@@ -42,6 +42,6 @@ router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updat
 
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile) 
 // since we are using /: to catch our params from url and we have to keep same name from there "username"
-router.route("/history").get(verifyJWT, getWatchHistory)
+router.route("/history").get(verifyJWT, getWatchHistory).delete(verifyJWT, clearWatchHistory)
 
 export default router

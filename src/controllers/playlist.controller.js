@@ -296,7 +296,7 @@ const getVideoSavePlaylists = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
   
     if (!isValidObjectId(videoId))
-      throw new APIError(400, "Valid videoId required");
+      throw new ApiError(400, "Valid videoId required");
   
     const playlists = await Playlist.aggregate([
       {
@@ -320,7 +320,7 @@ const getVideoSavePlaylists = asyncHandler(async (req, res) => {
   
     return res
       .status(200)
-      .json(new APIResponse(200, playlists, "Playlists sent successfully"));
+      .json(new ApiResponse(200, playlists, "Playlists sent successfully"));
 });
 
 export {

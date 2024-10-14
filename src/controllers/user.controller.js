@@ -516,6 +516,23 @@ const getWatchHistory = asyncHandler( async(req, res) => {
     .json(new ApiResponse(200, user[0].watchHistory), "watch history fetched successfully")
     // we send the first data from user and even in that we send only watchHistory
 })
+const clearWatchHistory = asyncHandler(async (req, res) => {
+  const isCleared = await User.findByIdAndUpdate(
+    new mongoose.Types.ObjectId(req.user?._id),
+    {
+      $set: {
+        watchHistory: [],
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  if (!isCleared) throw new APIError(500, "Failed to clear history");
+  return res
+    .status(200)
+    .json(new APIResponse(200, [], "History Cleared Successfully"));
+});
 
 export {
     registerUser, 
@@ -528,7 +545,8 @@ export {
     updateUserAvatar,
     updateUserCoverImage,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
+    clearWatchHistory
 }
 
 // login and logout working 

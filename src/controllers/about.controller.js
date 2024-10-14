@@ -113,7 +113,7 @@ export const getAboutChannel = asyncHandler( async(req, res) =>{
         new ApiResponse(200, aboutChannel[0], "got the channel details successfully")
     )
 })
-export const addChanelDescription = asyncHandler( async(req, res) =>{
+export const addChannelDescription = asyncHandler( async(req, res) =>{
     // take the content from the body and find user and update it
     const {content} = req.body
 
