@@ -566,15 +566,86 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+    //so i will find the Video and set the isPublished = !isPublished and save it
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Invalid Video ID ")
+    }
+    const video = await Video.findById(video)
+    if(!video){
+        throw new ApiError(400, "Couldn't found the video")
+    }
+    if(video.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(400, "User is not authorised to use Publish settings")
+    }
+    video.isPublished = !video.isPublished 
+    const updatedVideo = await video.save()
+    if(!updatedVideo){
+        throw new ApiError(400, "Error while toggling publish status")
+    }
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { isPublished: updatedVideo.isPublished },
+        "Video toggled successfully"
+      )
+    );
 })
 
-const updatedView = asyncHandler( async (req,res) => {})
+const updatedView = asyncHandler( async (req,res) => {
+    const {videoId} = req.params
+    // to update the view we have to find the video and then up the view by 1 but since user has given its view then this video should be in the users watchhistory for that , User push the video to its watchHistory array
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Invalid Video ID ")
+    }
+    const video = await Video.findById(video)
+    if(!video){
+        throw new ApiError(400, "Couldn't found the video")
+    }
+    video.views += 1
+    const updatedVideo = await video.save()
+    if(!updatedVideo){
+        throw new ApiError(400, "Error while toggling publish status")
+    }
+    // now putting it into watchHistory of user
+    let watchHistory
+    if(req.user){
+        watchHistory = await User.findByIdAndUpdate(
+            req.user._id,
+            {
+                $push:{
+                    watchHistory: new mongoose.Types.ObjectId(videoId)
+                }
+            },
+            {
+                new: true
+            }
+        )
+    }
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                isSuccess: true,
+                views: updatedVideo.views,
+                watchHistory
+            },
+            "Successfully Updated View and put it into Watch History."
+        )
+    )
+
+})
 
 export {
+    getAllVideosByOption,
     getAllVideos,
     publishAVideo,
     getVideoById,
     updateVideo,
     deleteVideo,
-    togglePublishStatus
+    togglePublishStatus,
+    updatedView
 }
