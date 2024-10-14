@@ -640,12 +640,12 @@ const updatedView = asyncHandler( async (req,res) => {
 })
 
 export {
-    getAllVideosByOption,
-    getAllVideos,
-    publishAVideo,
-    getVideoById,
-    updateVideo,
-    deleteVideo,
-    togglePublishStatus,
-    updatedView
+    getAllVideosByOption, //dont need access token and get
+    getAllVideos, // direct get, we dont need to check for Access Token 
+    publishAVideo, //direct post, and we need a user with a Access token
+    getVideoById, // we need videoId, but for User to have access token is Optional so we use "CheckUser"
+    updateVideo, // we need videoId, .patch, verifyJWT
+    deleteVideo, // we need videoId, .delete, verifyJWT
+    togglePublishStatus, // we need video id + a different path , .patch, and a verifyJWT user
+    updatedView // option token , patch
 }
