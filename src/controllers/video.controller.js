@@ -511,11 +511,64 @@ const updateVideo = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: delete video
+    // to delete a video = delete the video document , delete the likes document which is connected( for both video and comments) , delete the comments documents which is in the video, also the video from the playlist
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400, "Invalid Video ID for delete Video")
+    }
+    //check for the owner
+    const video = await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(400, "Couldn't fetch the Video from Video model , Video dont Exist to delete")
+    }
+    // only the owner of the video should have the access to update details
+    if(video.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(400, " only the owner of the video should have the access to update details")
+    }
+    //delete from cloudinary and video model
+    const findres = await Video.findByIdAndDelete(videoId)
+    await deleteVideoOnCloudinary(findres.videoFile)
+    //delete the likes from video and comments
+
+    await Like.deleteMany({
+        video: new mongoose.Types.ObjectId(videoId)
+    })
+    const videoComments = await Comment.find(
+        {
+            video: new mongoose.Types.ObjectId(videoId)
+        }
+    )
+    const commentID = videoComments.map((comment) => comment._id)
+
+    await Like.deleteMany({
+        comment: {$in: commentID}
+    })
+
+    //delete the comments
+    await Comment.deleteMany({
+        video: new mongoose.Types.ObjectId(videoId)
+    })
+
+    // now delete the video from playlist
+    const deleteVideoFromPlayList = await Playlist.updateMany(
+        {}, // this is the matching criteria , as we want to delete the video from every playlist so we kept it as empty
+        {
+            $pull: {
+                videos: new mongoose.Types.ObjectId(videoId)
+            }
+        }
+    )
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,[],"Video deleted successfully" )
+    )
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 })
+
+const updatedView = asyncHandler( async (req,res) => {})
 
 export {
     getAllVideos,
