@@ -1,7 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js" 
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { 
+    deletePhotoOnCloudinary , 
+    uploadPhotoOnCloudinary as uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import { json } from "express";
@@ -342,7 +344,7 @@ const updateUserAvatar = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Error while uploading on cloudinary")
     }
     // there is a TODO - create a utility that delete the old avatar url
-
+    await deletePhotoOnCloudinary(req.user?.avatar)
     const user = await User.findByIdAndUpdate(req.user._id,
         {
             $set: {
@@ -370,7 +372,7 @@ const updateUserCoverImage = asyncHandler( async (req, res) => {
     if(!coverImage.url){
         throw new ApiError(400, "Error while uploading on cloudinary")
     }
-
+    await deletePhotoOnCloudinary(req.user?.coverImage)
     const user = await User.findByIdAndUpdate(req.user._id,
         {
             $set: {
@@ -467,7 +469,7 @@ const getUserChannelProfile = asyncHandler( async(req, res) => {
 
 
 const getWatchHistory = asyncHandler( async(req, res) => {
-    const user = await User.aggregate([
+    const userWatchHistory = await User.aggregate([
         {
             $match: {
                 _id: new mongoose.Types.ObjectId(req.user._id) // check page 23 of word doc, we are in user model
@@ -513,7 +515,7 @@ const getWatchHistory = asyncHandler( async(req, res) => {
 
     return res
     .status(200)
-    .json(new ApiResponse(200, user[0].watchHistory), "watch history fetched successfully")
+    .json(new ApiResponse(200, userWatchHistory[0].watchHistory), "watch history fetched successfully")
     // we send the first data from user and even in that we send only watchHistory
 })
 const clearWatchHistory = asyncHandler(async (req, res) => {
