@@ -67,23 +67,27 @@ const uploadVideoOnCloudinary = async (filePath) => {
     }
 }
 const deletePhotoOnCloudinary = async (URL) => {
-    if(!URL) return null
-    const imageId = URL.match(
-        /(?:image|video)\/upload\/v\d+\/videotube\/(photos|videos)\/(.+?)\.\w+$/
-    )[2];
-      /*This is the regular expression itself, which matches a Cloudinary URL and captures two groups:
-        The first group ((photos|videos)) captures either "photos" or "videos".
-        The second group ((.+?)\.\w+$) captures the image ID.
-        [2]: This accesses the second captured group from the match array. Since the image ID is captured in the second group,
-     */
-    console.log("Deleting Photo from Cloudinary!!! ");
     try {
+        if(!URL) return null
+        // const imageId = URL.match(
+        //     /(?:image|video)\/upload\/v\d+\/videotube\/(photos|videos)\/(.+?)\.\w+$/
+        // )[2];
+        let imageId = URL.match(
+            /(?:image|video)\/upload\/v\d+\/videotube\/(photos|videos)\/(.+?)\.\w+$/
+        )[2];
+        /*This is the regular expression itself, which matches a Cloudinary URL and captures two groups:
+            The first group ((photos|videos)) captures either "photos" or "videos".
+            The second group ((.+?)\.\w+$) captures the image ID.
+            [2]: This accesses the second captured group from the match array. Since the image ID is captured in the second group,
+        */
+        console.log("Deleting Photo from Cloudinary!!! ");
+    
         const cloudinary_res = await cloudinary.uploader.destroy(
             `videoTube/photos/${imageId}`,
             {
-                resource_type: 'image'
+                resource_type: "image",
             }
-        )
+        );
         return cloudinary_res
     } catch (error){
         console.log("ERROR:: WHILE DELETING PHOTO FROM CLOUDINARY :: ", error);
