@@ -24,8 +24,8 @@ router
     .patch(verifyJWT,updatePlaylist)
     .delete(verifyJWT,deletePlaylist);
 
-router.route("/add/:videoId/:playlistId").patch(verifyJWT,addVideoToPlaylist);
-router.route("/remove/:videoId/:playlistId").patch(verifyJWT,removeVideoFromPlaylist);
+router.route("/add/:playlistId/:videoId").patch(verifyJWT,addVideoToPlaylist);
+router.route("/remove/:playlistId/:videoId").patch(verifyJWT,removeVideoFromPlaylist);
 
 router.route("/user/:userId").get(checkUser , getUserPlaylists);
 router.route("/user/playlists/:videoId").get(verifyJWT, getVideoSavePlaylists);
