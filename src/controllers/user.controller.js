@@ -38,11 +38,6 @@ const registerUser = asyncHandler( async (req, res) => {
     // check for user creation
     // return res
 
-
-
-
-
-
     const {fullName, email, password, userName} = req.body
     // console.log("email: ", email);
 
@@ -550,5 +545,8 @@ export {
     getWatchHistory,
     clearWatchHistory
 }
-
+/**  
+  updateUserProfile,
+,
+ */
 // login and logout working 
