@@ -3,6 +3,7 @@ import {
     getSubscribedChannels,
     getUserChannelSubscribers,
     toggleSubscription,
+    checkSubscriber
 } from "../controllers/subscription.controller.js"
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 import {checkUser} from "../middlewares/openRouteAuth.middleware.js"
@@ -11,9 +12,10 @@ const router = Router();
 
 router
     .route("/c/:channelId")
-    .get(checkUser, getSubscribedChannels)
-    .post(verifyJWT, toggleSubscription);
+    .get(checkUser, getUserChannelSubscribers)
+    .patch(verifyJWT, toggleSubscription)
+    .get(checkUser, checkSubscriber);
 
-router.route("/u/:subscriberId").get(checkUser, getUserChannelSubscribers);
+router.route("/u/:subscriberId").get(checkUser, getSubscribedChannels);
 
 export default router
