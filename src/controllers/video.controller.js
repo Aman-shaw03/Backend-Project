@@ -15,7 +15,6 @@ import {Comment} from "../models/comment.model.js"
 import {Like} from "../models/like.model.js"
 import {Playlist} from "../models/playlist.model.js"
 import fs from "fs"
-import { pipeline } from "stream"
 
 
 const getAllVideosByOption = asyncHandler(async (req, res) => {
@@ -33,7 +32,7 @@ const getAllVideosByOption = asyncHandler(async (req, res) => {
         isPublished: true
     }
     if(isValidObjectId(userId)){
-        filters.owner = userId
+        filters.owner = new mongoose.Types.ObjectId(userId)
     }
 
     let pipeline = [
@@ -95,16 +94,17 @@ const getAllVideosByOption = asyncHandler(async (req, res) => {
     }
     // code for sorting
     if(sortBy){
-        sort[sortBy] = parseInt(order) // this is like adding a key-value pair in sort Obj , sortBy is the field we will pass in the query
-        if(!search && !sortBy){
-            sort["createdAt"] = -1 // if no query then just sort by desc order at createdAt
-        }
+        sort[sortBy] = parseInt(order) 
+        // this is like adding a key-value pair in sort Obj , sortBy is the field we will pass in the query  
+    } else if(!search && !sortBy){
+        sort["createdAt"] = -1 
+        // if no query then just sort by desc order at createdAt
     }
 
     pipeline.push({
         $sort:{
-            ...sort
-        }
+            ...sort,
+        },
     })
 
     // code for fetching User details
