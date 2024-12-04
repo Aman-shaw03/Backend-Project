@@ -33,7 +33,7 @@ router.route("/logout").post(verifyJWT, logOutUser)
 // verifyJWT is our middleware after creating user , next() will execute and goes to logOutUser
 router.route("/refresh-token").post(refreshAccessToken)
 router.route("/change-password").post(verifyJWT, changeCurrentPassword)
-router.route("/current-user").get(verifyJWT, getCurrentUser)
+router.route("/get-current-user").get(verifyJWT, getCurrentUser)
 router.route("/update-account").patch(verifyJWT, updateAccountDetails) 
 //its better to use patch as we need to only update some details and not all
 router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
