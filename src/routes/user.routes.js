@@ -40,7 +40,7 @@ router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvat
 // we used 2 middleware , first to check if user is login or not , 2nd one is to upload single file so we use "single"
 router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)
 
-router.route("/c/:username").get(verifyJWT, getUserChannelProfile) 
+router.route("/c/:username").get(checkUser, getUserChannelProfile) 
 // since we are using /: to catch our params from url and we have to keep same name from there "username"
 router.route("/history").get(verifyJWT, getWatchHistory).delete(verifyJWT, clearWatchHistory)
 

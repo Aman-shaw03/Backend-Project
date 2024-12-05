@@ -27,19 +27,7 @@ const generateAccessAndRefreshToken = async(userId) => {
 
 const registerUser = asyncHandler( async (req, res) => {
 
-    // what should be the proper steps to register a User
-    // get user details from frontend
-    // validation - not empty
-    // check if user already exists: username, email
-    // check for images, check for avatar
-    // upload them to cloudinary, avatar
-    // create user object - create entry in db
-    // remove password and refresh token field from response
-    // check for user creation
-    // return res
-
     const {fullName, email, password, userName} = req.body
-    // console.log("email: ", email);
 
     /*check for validation in data*/
     if([fullName, email, password, userName].some((field) => field?.trim() === "")){
@@ -53,8 +41,11 @@ const registerUser = asyncHandler( async (req, res) => {
         // new syntax 
     })
 
-    if(existedUser){
-        throw new ApiError(409, "User existed with same UserName or Email")
+    if (existedUser) {
+        // throw new APIError(400, "User Already Exists...");
+        return res
+          .status(400)
+          .json(new ApiResponse(400, [], "User Already Exists..."));
     }
 
     // User.findOne({userName}) or User.findOne({email}) this way we write queries and 
@@ -70,16 +61,21 @@ const registerUser = asyncHandler( async (req, res) => {
     // if(req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0){
     //     avatarLocalPath = req.files.avatar[0].path;
     // }
-    const avatarLocalPath = req.files?.avatar[0]?.path;
+    // const avatarLocalPat = req.files?.avatar[0]?.path;
 
     // why we are doing files her and not file
     // well in routes we are sending multiple files through multer middleware so we are keep that as "fields" as 
     //there was option for avatar and cover image so multiple fields are there , so to take from those multiple files 
     //we are using "files" here
 
-    let coverImageLocalPath;
-    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-        coverImageLocalPath = req.files.coverImage[0].path
+    let avatarLocalPath = "";
+    if (req.files && req.files.avatar && req.files?.avatar.length > 0) {
+      avatarLocalPath = req.files?.avatar[0]?.path;
+    }
+  
+    let coverImageLocalPath = "";
+    if (req.files && req.files.coverImage && req.files?.coverImage.length > 0) {
+      coverImageLocalPath = req.files?.coverImage[0]?.path;
     }
     //logic => user can send many images , so its a array
     if(!avatarLocalPath){
@@ -88,7 +84,7 @@ const registerUser = asyncHandler( async (req, res) => {
 
     //upload on cloudinary
     const avatar = await uploadOnCloudinary(avatarLocalPath)
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    
 
 
     //double checking the avatar
@@ -96,13 +92,17 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Avatar required")
     }
 
+    let coverImageRes = coverImageLocalPath
+    ? await uploadOnCloudinary(coverImageLocalPath)
+    : "";
+
     // sending/creating a data object
     const user = await User.create({
         userName: userName.toLowerCase(),
         fullName,
         email,
         password,
-        coverImage: coverImage.url || "",
+        coverImage: coverImageRes?.url || "",
         avatar: avatar.url
     }) 
 
@@ -126,19 +126,13 @@ const registerUser = asyncHandler( async (req, res) => {
 // task is to create a Method for Login
 
 const loginUser = asyncHandler( async (req, res) => {
-    // req body -> data
-    // username or email
-    //find the user
-    //password check
-    //access and referesh token
-    //send cookie
-
 
     // take these from req body
     const {userName, email , password} = req.body
+    console.log(email, password, username)
 
     //check if email or userName is there
-    if(!(email || userName)){
+    if((!email && !userName) || !password){
         throw new ApiError(400, "email or userName is required")
     }
 
@@ -147,13 +141,15 @@ const loginUser = asyncHandler( async (req, res) => {
         $or: [{userName}, {email}]
     })
     if(!user){
-        throw new ApiError(404, "user not exist")
+        return res.status(404).json(new ApiResponse(404, [], "User not Found"));
     }
 
     //now use isPasswordcorrect method to check the password
     const isPasswordValid = await user.isPasswordCorrect(password)
     if(!isPasswordValid){
-        throw new ApiError(404," invalid user credentials")
+        return res
+            .status(401)
+            .json(new ApiResponse(401, [], "Invalid Credentials"));
     }
     //here user is the user we created and the method is from user.model , not the mongoose "User" object
 
@@ -162,19 +158,21 @@ const loginUser = asyncHandler( async (req, res) => {
     //till now i have created these token but didnt send them to the user, we will do it with the help of cookies
     // but separately from other data , so we do this step
 
-    const loggedInUser = await User.findOne(user._id).select("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken -watchHistory")
     //we will send these to user, which is excluded of password and refresh token as we dont want to give it to them
 
-    const options = {
-        httpOnly: true,
-        secure: true
-    }
+    // const options = {
+    //     httpOnly: true,
+    //     secure: true
+    // }
     // when we send cookie for token , it can be modified by anyone, but if we give these along with cookies , now the cookies can only be modified by the server  (another good practise)
+    res.setHeader(
+        "Set-Cookie",
+        `accessToken=${accessToken}; Max-Age=${1 * 24 * 60 * 60 * 1000}; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
+    );
 
     return res
     .status(200)
-    .cookie("accessToken", accessToken , options) //finally here we give user their tokens
-    .cookie("refreshToken", refreshToken, options)
     .json(
         new ApiResponse(
             200,
