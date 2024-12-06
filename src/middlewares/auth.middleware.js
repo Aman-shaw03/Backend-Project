@@ -22,7 +22,7 @@ export const verifyJWT = asyncHandler( async (req, _, next) => {
         
         // inside token , there is many fields (checkout user model ) find the id and create the user
         if (!decodedToken) {
-            throw new APIError(401, "Invalid Access Token");
+            throw new ApiError(401, "Invalid Access Token");
         }
     
         const user = await User.findById(decodedToken._id).select("-password -refreshToken -watchHistory")

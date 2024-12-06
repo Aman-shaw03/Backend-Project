@@ -4,7 +4,7 @@
 // we have to the flag the nodemon and run this dotenv as a experimental
 
 import dotenv from "dotenv"
-import connectDB from "./db/index.js"
+import connectToDatabase from "./db/index.js"
 import { app } from "./app.js"
 
 dotenv.config({path: "./env"})
@@ -21,7 +21,7 @@ connectToDatabase()
     })
 })
 .catch((error) => {
-    console.log("MONGODB CONNECTION FAILED!!! ", err);
+    console.log("MONGODB CONNECTION FAILED!!! ", error);
     
 })
 
