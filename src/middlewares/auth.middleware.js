@@ -8,13 +8,15 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const verifyJWT = asyncHandler( async (req, _, next) => {
     try {
+        console.log(req?.cookies?.accessToken);
+        
         const accessToken =
-            req.cookies?.accessToken ||
-            req.header("Authorization")?.replace("Bearer ", "");
+        req.cookies?.accessToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
         // we handle cookies? as maybe cookie wont be there (mobile user case) if not then find the token from header
         //in header tokens are like this "Authorization : Bearer  "Token" "
         if(!accessToken){
-            throw new ApiError(401, "UnAuthorised Request")
+            throw new ApiError(401, "auth middleware error")
         }
     
         //now if we get token , verify it 
