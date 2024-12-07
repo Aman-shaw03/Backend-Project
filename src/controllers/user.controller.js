@@ -12,14 +12,22 @@ import mongoose from "mongoose";
 const generateAccessAndRefreshToken = async(userId) => {
     try {
         const user = await User.findById(userId) //find the user based on the id provided by MongoDB
-        const accessToken = user.generateAccessToken() // used a method to generate Access 
-        const refreshToken = user.generateRefreshToken() // used a method to generate refresh token
-        user.refreshToken = refreshToken //we set the refresh token for user for the purpose of saving it in our DB (with related user) (i know little  confusing)
-        await user.save({validateBeforeSave: false}) //save refresh token in DB but if we save we have to validate before save , so we set it to false 
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+        user.refreshToken = refreshToken;
+         //we set the refresh token for user for the purpose of saving it in our DB (with related user) (i know little  confusing)
+        await user.save({ validateBeforeSave: false }) 
+        //save refresh token in DB but if we save we have to validate before save , so we set it to false
+        console.log(accessToken);
+        console.log(refreshToken);
+         
 
-        return {accessToken, refreshToken}
+        return { refreshToken, accessToken };
     } catch (error) {
-        throw new ApiError(500, "unable to create access or refresh token")
+        throw new ApiError(
+            500,
+            "Something went wrong while generating refresh and access token"
+        );
     }
     //1 error here
 }
@@ -97,7 +105,7 @@ const registerUser = asyncHandler( async (req, res) => {
     : "";
 
     // sending/creating a data object
-    const user = await User.create({
+    const createdUser  = await User.create({
         userName: userName.toLowerCase(),
         fullName,
         email,
@@ -107,18 +115,18 @@ const registerUser = asyncHandler( async (req, res) => {
     }) 
 
     // check if user object is created in DB ? and remove password and refreshToken 
-    const createdUser = await User.findById(user._id).select(
+    const userData = await User.findById(createdUser ._id).select(
         "-password -refreshToken"
     )
     
-    if(!createdUser){
+    if(!userData){
         throw new ApiError(500 , "something went wromg while creating user")
     }
     // console.log("req files are ",req.files);
     // console.log("req fields are ",req.field);
 
     return res.status(201).json(
-        new ApiResponse(200, createdUser,"User registered successfully")
+        new ApiResponse(200, userData,"User registered successfully")
     )
     
 })
@@ -221,7 +229,7 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
     User will hit a endpoint after his access token expire(so set a route to)*/
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken // mobile users will have their token in Body
     if(!incomingRefreshToken){
-        throw new ApiError(400, "Unauthorized access")
+        throw new ApiError(400, "Unauthorized access, incomingRefreshToken error")
     }
     //taken the user refresh token and handle mobile user case
     try {
@@ -234,26 +242,30 @@ const refreshAccessToken = asyncHandler( async (req, res) => {
         }
         //found the user
         if(incomingRefreshToken !== user?.refreshToken){
-            throw new ApiError(401, "refresh token is expired or used")
+            throw new ApiError(401, "Refresh token is expired or used");
         }
+        
         //check if both tokens are same (while encoded)
+        const {accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
         const options = {
             httpOnly: true,
-            secure: true
+            secure: true,
+            sameSite: "None",
+            Partitioned: true,
         }
-    
-        const {accessToken, newRefreshToken} = await generateAccessAndRefreshToken(user._id)
+        res.setHeader(
+            "Set-Cookie",
+            `accessToken=${accessToken}; Max-Age=${1 * 24 * 60 * 60 * 1000}; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
+        );
         // generate new tokens to replace them
         return res
         .status(200)
-        .cookie("accessToken", accessToken , options)
-        .cookie("refreshToken", newRefreshToken , options)
         .json(
             new ApiResponse(
                 200,
                 {
                     accessToken,
-                    refreshToken: newRefreshToken
+                    newRefreshToken: refreshToken
                 },
                 "Access token Refreshed"
             )

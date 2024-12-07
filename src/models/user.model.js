@@ -13,6 +13,16 @@ const linkSchema = new Schema({
     }
 })
 
+const watchHistorySchema = new Schema(
+    {
+      video: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Video",
+      },
+    },
+    { timestamps: true }
+);
+
 const userSchema  = new Schema(
     {
         userName: {
@@ -51,19 +61,18 @@ const userSchema  = new Schema(
         },
         watchHistory: [
             {
-                type: Schema.Types.ObjectId,
+                type: mongoose.Schema.Types.ObjectId,
                 ref: "Video"
             }
         ],
-        refreshToken:{
-            type: String
-            // will learn about it later
-        },
         description:{
             type: String,
             default: ""
         },
-        links:[linkSchema] // we created a sperate schema for the links , so they got their _id which helps in $pull for removing and update
+        links:[linkSchema],
+        refreshToken: {
+            type: String,
+        }, // we created a sperate schema for the links , so they got their _id which helps in $pull for removing and update
     },
     {
         timestamps: true
@@ -96,7 +105,6 @@ userSchema.methods.isPasswordCorrect = async function(password){
 // how to use JWT refresh and access token
 userSchema.methods.generateAccessToken = function(){
     return jwt.sign(
-        // we will get the _id from mongoDB
         {
             _id: this._id,
             userName : this.userName,
@@ -105,21 +113,17 @@ userSchema.methods.generateAccessToken = function(){
         },
         process.env.ACCESS_TOKEN_SECRET,
         {
-            // we have to pass expiry in obj , i know but its syntax
             expiresIn: process.env.ACCESS_TOKEN_EXPIRY
         }
     )
 }
 userSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
-        // we will get the _id from mongoDB
-        //in refresh token we dont send many things in payload
         {
             _id: this._id,
         },
         process.env.REFRESH_TOKEN_SECRET,
         {
-            // we have to pass expiry in obj , i know but its syntax
             expiresIn: process.env.REFRESH_TOKEN_EXPIRY
         }
     )
