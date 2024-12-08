@@ -1,8 +1,12 @@
-import { Router } from 'express';
-import { healthcheck } from "../controllers/healthcheck.controller.js"
+import { Router } from "express";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { healthcheck } from "../controllers/healthcheck.controller.js";
 
 const router = Router();
 
-router.route('/').get(healthcheck);
+// router.use(verifyJWT);
 
-export default router
+// http://localhost:3000/api/v1/healthcheck
+router.route("/").get(healthcheck);
+
+export default router;

@@ -1,82 +1,68 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
+import { APIError } from "../utils/APIError.js";
 import { User } from "../models/user.model.js";
 import {
-  deletePhotoOnCloudinary,
+  deleteImageOnCloudinary,
   uploadPhotoOnCloudinary as uploadOnCloudinary,
 } from "../utils/cloudinary.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
+import { APIResponse } from "../utils/APIResponse.js";
 import jwt from "jsonwebtoken";
-import { json } from "express";
 import mongoose from "mongoose";
 
-const generateAccessAndRefreshToken = async (userId) => {
+// TODO: Review and Enhance all controllers
+
+const generateAccessAndRefreshToken = async (_id) => {
   try {
-    const user = await User.findById(userId); //find the user based on the id provided by MongoDB
+    const user = await User.findById(_id);
+
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
+
     user.refreshToken = refreshToken;
-    //we set the refresh token for user for the purpose of saving it in our DB (with related user) (i know little  confusing)
     await user.save({ validateBeforeSave: false });
-    //save refresh token in DB but if we save we have to validate before save , so we set it to false
-    if (process.env.NODE_ENV !== 'production') {
-        console.log(`Access Token (redacted): ${accessToken.slice(0, 20)}...`);
-        console.log(`Refresh Token (redacted): ${refreshToken.slice(0, 20)}...`);
-    }
 
     return { refreshToken, accessToken };
   } catch (error) {
-    throw new ApiError(
+    throw new APIError(
       500,
       "Something went wrong while generating refresh and access token"
     );
   }
-  //1 error here
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { fullName, email, password, userName } = req.body;
+  // Get the data from frontend
+  // Validate the data - Check if empty or not
+  // check if user exists or not
+  // Handle file uploads
+  // upload files in cloudinary
+  // create user
+  // check if user created successfully
+  // send back the response
 
-  /*check for validation in data*/
+  // Getting the data from frontend
+  let { username, password, fullName, email } = req.body;
+
+  // Validating and formating the data
   if (
-    [fullName, email, password, userName].some((field) => field?.trim() === "")
+    [username, password, fullName, email].some((field) => field?.trim() === "")
   ) {
-    throw new ApiError(400, "All fields are required");
+    throw new APIError(400, `all fields are required!!!`);
   }
-  // using our Error utility and .some sends true when conditions fullfilled
 
-  /*Check for existing user in db */
-  const existedUser = await User.findOne({
-    $or: [{ userName }, { email }],
-    // new syntax
+  // checking if user exists or not
+  const userExist = await User.findOne({
+    $or: [{ username }, { email }],
   });
 
-  if (existedUser) {
+  if (userExist) {
     // throw new APIError(400, "User Already Exists...");
     return res
       .status(400)
-      .json(new ApiResponse(400, [], "User Already Exists..."));
+      .json(new APIResponse(400, [], "User Already Exists..."));
   }
 
-  // User.findOne({userName}) or User.findOne({email}) this way we write queries and
-  //since we create our User from MongoDb model ..it can interact with MongoDB directly
-
-  /*Check for images and avatar in Local storage*/
-  // req.body we get most of time with req.body but due to middleware we have access to files(methods which used to send files)
-
-  // console.log("this is the requests body , study this ",req.body)
-  // let avatarLocalPath;
-  // console.log(req.files);
-
-  // if(req.files && Array.isArray(req.files.avatar) && req.files.avatar.length > 0){
-  //     avatarLocalPath = req.files.avatar[0].path;
-  // }
-  // const avatarLocalPat = req.files?.avatar[0]?.path;
-
-  // why we are doing files her and not file
-  // well in routes we are sending multiple files through multer middleware so we are keep that as "fields" as
-  //there was option for avatar and cover image so multiple fields are there , so to take from those multiple files
-  //we are using "files" here
+  // Handling File
 
   let avatarLocalPath = "";
   if (req.files && req.files.avatar && req.files?.avatar.length > 0) {
@@ -87,341 +73,380 @@ const registerUser = asyncHandler(async (req, res) => {
   if (req.files && req.files.coverImage && req.files?.coverImage.length > 0) {
     coverImageLocalPath = req.files?.coverImage[0]?.path;
   }
-  //logic => user can send many images , so its a array
+
   if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar required chiaye");
+    throw new APIError(400, "avatar Image is Required");
   }
 
-  //upload on cloudinary
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  // uploading on cloudinary
 
-  //double checking the avatar
-  if (!avatar) {
-    throw new ApiError(400, "Avatar required");
-  }
+  let avatarRes = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatarRes)
+    throw new APIError(500, "Internal Server Error!!! Files Unable to Upload");
 
   let coverImageRes = coverImageLocalPath
     ? await uploadOnCloudinary(coverImageLocalPath)
     : "";
 
-  // sending/creating a data object
+  // Create new user
   const createdUser = await User.create({
-    userName: userName.toLowerCase(),
-    fullName,
-    email,
+    username: username.toLowerCase(),
     password,
+    email,
+    fullName,
     coverImage: coverImageRes?.url || "",
-    avatar: avatar.url,
+    avatar: avatarRes.url,
   });
 
-  // check if user object is created in DB ? and remove password and refreshToken
+  // checking if user is created successfully
+
   const userData = await User.findById(createdUser._id).select(
     "-password -refreshToken"
   );
 
   if (!userData) {
-    throw new ApiError(500, "something went wromg while creating user");
+    throw new APIError(500, "Something went wrong while registering the user");
   }
-  // console.log("req files are ",req.files);
-  // console.log("req fields are ",req.field);
 
+  // Send back data to frontend
   return res
     .status(201)
-    .json(new ApiResponse(200, userData, "User registered successfully"));
+    .json(new APIResponse(200, userData, "Account Created Successfully"));
 });
 
-// task is to create a Method for Login
-
 const loginUser = asyncHandler(async (req, res) => {
-  // take these from req body
-  const { userName, email, password } = req.body;
-//   console.log(email, password, username);
+  // data <- req.body
+  // validate data
+  // find User
+  // generate tokens
+  // store tokens in database
+  // set tokens in cookie
+  // send response
 
-  //check if email or userName is there
-  if ((!email && !userName) || !password) {
-    throw new ApiError(400, "email or userName is required");
+  // data <- req.body
+
+  let { email, password, username } = req.body;
+  console.log(email, password, username)
+
+  // validate
+  if ((!email && !username) || !password) {
+    throw new APIError(400, "Username or Email is required");
   }
 
-  //check if same email or userName is in DB
+  // find User
   const user = await User.findOne({
-    $or: [{ userName }, { email }],
+    $or: [{ email }, { username }],
   });
+
   if (!user) {
-    return res.status(404).json(new ApiResponse(404, [], "User not Found"));
+    // throw new APIError(404, "User not Found");
+    return res.status(404).json(new APIResponse(404, [], "User not Found"));
   }
 
-  //now use isPasswordcorrect method to check the password
-  const isPasswordValid = await user.isPasswordCorrect(password);
-  if (!isPasswordValid) {
+  const isCredentialValid = await user.isPasswordCorrect(password);
+  if (!isCredentialValid) {
+    // throw new APIError(401, "Credential Invalid");
     return res
       .status(401)
-      .json(new ApiResponse(401, [], "Invalid Credentials"));
+      .json(new APIResponse(401, [], "Invalid Credentials"));
   }
-  //here user is the user we created and the method is from user.model , not the mongoose "User" object
 
+  // generate and store tokens
   const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
     user._id
   );
 
-  //till now i have created these token but didnt send them to the user, we will do it with the help of cookies
-  // but separately from other data , so we do this step
-
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken -watchHistory"
   );
-  //we will send these to user, which is excluded of password and refresh token as we dont want to give it to them
 
-  // const options = {
-  //     httpOnly: true,
-  //     secure: true
-  // }
-  // when we send cookie for token , it can be modified by anyone, but if we give these along with cookies , now the cookies can only be modified by the server  (another good practise)
+  // set tokens in cookie and send response
+  // const cookieOptions = {
+  //   httpOnly: true,
+  //   secure: true,
+  //   sameSite: "None",
+  //   Partitioned: true,
+  // };
+
   res.setHeader(
     "Set-Cookie",
     `accessToken=${accessToken}; Max-Age=${1 * 24 * 60 * 60 * 1000}; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
   );
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        user: loggedInUser,
-        accessToken,
-        refreshToken, // if in above we send token then why we are sending
-        // we are sending these token again to handle cases like if user isin mobile or want to save them in localstorage (business use case)
-      },
-      "User Logged in Successfully"
-    )
-  );
+  // res.setHeader(
+  //   "Set-Cookie",
+  //   `__Host-refreshToken=${refreshToken}; Max-Age=${10 * 24 * 60 * 60 * 1000}; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
+  // );
+
+  return res
+    .status(200)
+    .json(
+      new APIResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        "Logged In Successfully"
+      )
+    );
 });
 
-const logOutUser = asyncHandler(async (req, res) => {
-  // idea is to take their access token but how to get them
-  // create a middleware to take it from req.cookie or from req.header.authorization
-
-  User.findByIdAndUpdate(
-    req.user,
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user?._id,
     {
       $unset: {
-        refreshToken: 1, // this removes the field from document, actually unset send the flag to unset the refreshToken, earliers we used $set and set refreshToken as null, which is not working while testing from Postman
+        refreshToken: 1,
       },
     },
     {
-      new: true, // now old response (with refresh token) wont be send and new response (without RT) sent
+      new: true,
     }
   );
-  const options = {
+
+  const cookieOptions = {
     httpOnly: true,
     secure: true,
+    sameSite: "None",
   };
 
-  res
+  res.setHeader(
+    "Set-Cookie",
+    `accessToken=; Max-Age=-1; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
+  );
+
+  // .clearCookie("accessToken", {
+  //   ...cookieOptions,
+  //   maxAge: 1 * 24 * 60 * 60 * 1000,
+  // })
+  // .clearCookie("refreshToken", {
+  //   ...cookieOptions,
+  //   maxAge: 10 * 24 * 60 * 60 * 1000,
+  // })
+
+  return res
     .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, {}, "User logged out successfully"));
+    .json(new APIResponse(200, {}, "Logged out Successfully"));
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  /*task is to refresh acess token after its expiry time
-    first get both refreshtokens (1 from user and other which i save on DB) then compare 
-    if both token match , generate new access token for the user 
-    User will hit a endpoint after his access token expire(so set a route to)*/
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken; // mobile users will have their token in Body
+    req.cookies.refreshToken || req.body.refreshToken;
+
   if (!incomingRefreshToken) {
-    throw new ApiError(400, "Unauthorized access, incomingRefreshToken error");
+    throw new APIError(401, "unauthorized request");
   }
-  //taken the user refresh token and handle mobile user case
+
   try {
-    const decodedToken = jwt.verify(
+    const decodedRefreshToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-    // to get refresh token stored in DB of user , first we have to find user in DB (using "User" from MongoDB), so we are decoding the token received from user to use "findById"
 
-    const user = await User.findById(decodedToken?._id);
+    const user = await User.findById(decodedRefreshToken?._id);
+
     if (!user) {
-      throw new ApiError(400, "Invalid refresh Token");
-    }
-    //found the user
-    if (incomingRefreshToken !== user?.refreshToken) {
-      throw new ApiError(401, "Refresh token is expired or used");
+      throw new APIError(401, "Invalid Refresh Token");
     }
 
-    //check if both tokens are same (while encoded)
+    if (incomingRefreshToken !== user.refreshToken) {
+      throw new APIError(401, "Refresh token is expired or used");
+    }
+
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
       user._id
     );
-    const options = {
+
+    const cookieOptions = {
       httpOnly: true,
       secure: true,
       sameSite: "None",
       Partitioned: true,
     };
+
     res.setHeader(
       "Set-Cookie",
       `accessToken=${accessToken}; Max-Age=${1 * 24 * 60 * 60 * 1000}; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
     );
-    // generate new tokens to replace them
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          accessToken,
-          newRefreshToken: refreshToken,
-        },
-        "Access token Refreshed"
-      )
-    );
-    // set the new token with response
+
+    // res.setHeader(
+    //   "Set-Cookie",
+    //   `refreshToken=${refreshToken}; Max-Age=${10 * 24 * 60 * 60 * 1000}; Path=/; HttpOnly; SameSite=None; Secure; Partitioned`
+    // );
+
+    return res
+      .status(200)
+      .json(
+        new APIResponse(
+          200,
+          { accessToken, newRefreshToken: refreshToken },
+          "Access Token Granted Successfully"
+        )
+      );
   } catch (error) {
-    throw new ApiError(401, error?.message || "Invalid Refresh Token");
+    throw new APIError(401, error?.message || "Invalid refresh token");
   }
 });
 
-const changeCurrentPassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+// TODO Remove password from response.... .lean()
+
+const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  // Caution
+  if (!oldPassword || !newPassword) {
+    throw new APIError(400, "All Fields Required");
+  }
 
   const user = await User.findById(req.user?._id);
-  // since user must be loggedin so we can use verifyJWT to inject this req.user
-  const isPasswordcorrect = await user.isPasswordCorrect(currentPassword);
-  // this method "isPasswordCorrect" is in user model do check it out
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
-  if (!isPasswordcorrect) {
-    throw new ApiError(400, "Invalid Old Password");
+  if (!isPasswordCorrect) {
+    throw new APIError(401, "Old Password is not Correct");
   }
-  // check the old password
 
-  user.password = newPassword; // we set it but not yet saved it
+  user.password = newPassword;
   await user.save({ validateBeforeSave: false });
-  // we are saving so pre hook will ake effect and if the password is modified ..it will save the password after encrypting it
 
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "Password changed Successfully"));
+    .json(new APIResponse(200, {}, "Password Changed Successfully"));
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(new ApiResponse(200, req.user, "User Fetched Successfully"));
-  // as by using verifyJWT it will inject user , so we directly send it in Response
+    .json(new APIResponse(201, req.user, "User fetched Successfully"));
 });
 
-const updateAccountDetails = asyncHandler(async (req, res) => {
-  const { fullName, email } = req.body;
-  // we are creating this to change only 2 fields that is fullname and email , Not even userName
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const { fullName, email, username, description } = req.body;
 
-  if (!fullName || !email) {
-    throw new ApiError(400, "All fields are required");
+  if (!fullName && !email && !username && !description) {
+    throw new APIError(400, "At least one field required");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        fullName: fullName,
-        email: email,
-      },
-    },
-    {
-      new: true, // updated info will return now so we hold it in user
+  const user = await User.findById(req.user?._id);
+
+  if (fullName) user.fullName = fullName;
+
+  if (email) user.email = email;
+
+  if (description) user.description = description;
+
+  if (username) {
+    const isExists = await User.find({ username });
+    if (isExists?.length > 0) {
+      throw new APIError(400, "Username not available");
+    } else {
+      user.username = username;
     }
-  ).select("-password");
+  }
+
+  const updatedUserData = await user.save();
+
+  if (!updatedUserData) {
+    new APIError(500, "Error while Updating User Data");
+  }
+
+  delete updatedUserData.password;
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Account Details updated successfully"));
+    .json(
+      new APIResponse(200, updatedUserData, "Profile updated Successfully")
+    );
 });
-
-// its good practise that we want to change user files(avatar, img file) its better to write separate controller
-// and a different endpoint to lower bandwith in network as not whole user data will be resave again and again
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
-  // why using "file" and not "files" as for avatar separate controller , we need one 1 file so we use "file"
-  //also check commnent in create user,
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is missing in Local storage");
-  }
-  // getting avatar from the local path and sending it to cloudinary and at last setting it
 
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  if (!avatar.url) {
-    throw new ApiError(400, "Error while uploading on cloudinary");
+  if (!avatarLocalPath) {
+    throw new APIError(400, "File required");
   }
-  // there is a TODO - create a utility that delete the old avatar url
-  await deletePhotoOnCloudinary(req.user?.avatar);
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
+
+  const avatarImg = await uploadOnCloudinary(avatarLocalPath);
+
+  if (!avatarImg) {
+    throw new APIError(500, "Error Accured While uploading File");
+  }
+
+  await deleteImageOnCloudinary(req.user?.avatar);
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
     {
-      $set: {
-        avatar: avatar.url,
-      },
+      $set: { avatar: avatarImg.url },
     },
     {
       new: true,
     }
   ).select("-password");
 
+  if (!updatedUser) {
+    new APIError(500, "Error while Updating database");
+  }
+
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Avatar changed successfully"));
+    .json(new APIResponse(200, updatedUser, "avatar updated Successfully"));
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
+
   if (!coverImageLocalPath) {
-    throw new ApiError(400, "coverImage file is missing in Local storage");
+    throw new APIError(400, "File required");
   }
 
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-  if (!coverImage.url) {
-    throw new ApiError(400, "Error while uploading on cloudinary");
+  const coverImg = await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImg) {
+    throw new APIError(500, "Error Accured While uploading File");
   }
-  await deletePhotoOnCloudinary(req.user?.coverImage);
+
+  await deleteImageOnCloudinary(req.user?.coverImage);
+
   const user = await User.findByIdAndUpdate(
-    req.user._id,
+    req.user?._id,
     {
-      $set: {
-        coverImage: coverImage.url,
-      },
+      $set: { coverImage: coverImg.url },
     },
     {
       new: true,
     }
   ).select("-password");
 
+  if (!user) {
+    new APIError(500, "Error accured while Updating database");
+  }
+
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "coverImage changed successfully"));
+    .json(new APIResponse(200, user, "Cover Image updated Successfully"));
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-  const { username } = req.params; // takes the name of channel from url
-
+  const { username } = req.params;
   if (!username) {
-    throw new ApiError(400, "no username found");
+    throw new APIError(400, "no username found");
   }
 
-  // now do the work for getting subscribers and subscribeTo and check if the user is subscribe to me
-
-  const channel = await User.aggregate([
+  const channelUser = await User.aggregate([
     {
       $match: {
-        username: username?.toLowerCase(), 
+        // this gives channel document
+        username: username?.toLowerCase(),
       },
     },
     {
+      // this gives Subscribers of channel
       $lookup: {
-        from: "subscriptions", 
-        localField: "_id", 
+        from: "subscriptions",
+        localField: "_id",
         foreignField: "channel",
         as: "subscribers",
       },
     },
     {
+      // this gives subcriptions of channel
       $lookup: {
         from: "subscriptions",
         localField: "_id",
@@ -440,7 +465,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         isSubscribed: {
           $cond: {
             if: { $in: [req.user?._id, "$subscribers.subscriber"] },
-            then: true, 
+            then: true,
             else: false,
           },
         },
@@ -448,8 +473,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
     {
       $project: {
-        fullName: 1,
         username: 1,
+        fullName: 1,
         avatar: 1,
         coverImage: 1,
         email: 1,
@@ -460,68 +485,166 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if (!channel?.length) {
-    throw new ApiError(404, "channel does not exist now ");
+  if (!channelUser?.length) {
+    throw new APIError(404, "channel does not exists");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, channel[0], "user channel fetched successful"));
-  //after pipelines we get data in the array format , do check it out and for frontend ease we send the first data from that array array[0]
+    .json(new APIResponse(200, channelUser[0], "Channel Fetched Successfully"));
 });
 
-const getWatchHistory = asyncHandler(async (req, res) => {
+// TODO Get Proper WatchHistory
+const getNewWatchHistory = asyncHandler(async (req, res) => {
   const userWatchHistory = await User.aggregate([
     {
       $match: {
-        _id: new mongoose.Types.ObjectId(req.user._id), // check page 23 of word doc, we are in user model
+        _id: new mongoose.Types.ObjectId(req.user?._id),
+      },
+    },
+    {
+      $project: { watchHistory: 1 },
+    },
+    {
+      $unwind: {
+        path: "$watchHistory",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $sort: {
+        "watchHistory.createdAt": -1,
+      },
+    },
+    {
+      $addFields: {
+        "watchHistory.watchedDate": {
+          $dateToString: {
+            format: "%Y-%m-%d",
+            date: "$watchHistory.createdAt",
+          },
+        },
       },
     },
     {
       $lookup: {
-        from: "videos", // where we want to go (model)
-        localField: "watchHistory",
+        from: "videos",
+        localField: "watchHistory.video",
         foreignField: "_id",
-        as: "watchHistory", // after this we are getting their documnet with id's but in that there is owner which required data from user so we have to nested
+        as: "watchHistory.video",
         pipeline: [
           {
             $lookup: {
-              from: "users", //go back to user model
+              from: "users",
               localField: "owner",
               foreignField: "_id",
-              as: "owner", // in watchHistory we get whole video model and in that video model there is owner which holds all the fields of user , so it result to huge data for sending everytime further nested it to get only necessary data from user
+              as: "owner",
               pipeline: [
                 {
                   $project: {
-                    fullName: 1,
                     username: 1,
-                    avatar: 1, // this will limit the user data in owner field to 3 fields only
+                    fullName: 1,
+                    avatar: 1,
                   },
                 },
               ],
             },
           },
           {
-            // we want to add a field as the data will return array and inside it a object , so add a field that only has the first value of array for frontend ease
             $addFields: {
               owner: {
-                $first: "$owner", // send only first value of "owner" field to the newly add field "owner" we keep same name so it overrides the owner itself
+                $first: "$owner",
               },
             },
           },
         ],
       },
     },
+    {
+      $addFields: {
+        "watchHistory.video": {
+          $first: "$watchHistory.video",
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$watchHistory.watchedDate",
+        videos: {
+          $push: "$watchHistory",
+        },
+      },
+    },
   ]);
+
+  let watchHistory = userWatchHistory;
+
+  return res
+    .status(200)
+    .json(new APIResponse(200, watchHistory, "History Fetched Successfully"));
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const userWatchHistory = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    username: 1,
+                    fullName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      $project: {
+        watchHistory: 1,
+      },
+    },
+  ]);
+
+  let watchHistory = userWatchHistory[0].watchHistory;
 
   return res
     .status(200)
     .json(
-      new ApiResponse(200, userWatchHistory[0].watchHistory),
-      "watch history fetched successfully"
+      new APIResponse(
+        200,
+        watchHistory.reverse(),
+        "History Fetched Successfully"
+      )
     );
-  // we send the first data from user and even in that we send only watchHistory
 });
+
 const clearWatchHistory = asyncHandler(async (req, res) => {
   const isCleared = await User.findByIdAndUpdate(
     new mongoose.Types.ObjectId(req.user?._id),
@@ -534,28 +657,23 @@ const clearWatchHistory = asyncHandler(async (req, res) => {
       new: true,
     }
   );
-  if (!isCleared) throw new ApiError(500, "Failed to clear history");
+  if (!isCleared) throw new APIError(500, "Failed to clear history");
   return res
     .status(200)
-    .json(new ApiResponse(200, [], "History Cleared Successfully"));
+    .json(new APIResponse(200, [], "History Cleared Successfully"));
 });
 
 export {
   registerUser,
   loginUser,
-  logOutUser,
+  logoutUser,
   refreshAccessToken,
-  changeCurrentPassword,
+  changePassword,
+  updateUserProfile,
   getCurrentUser,
-  updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
   getUserChannelProfile,
   getWatchHistory,
   clearWatchHistory,
 };
-/**  
-  updateUserProfile,
-,
- */
-// login and logout working
